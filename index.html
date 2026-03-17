@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon 실시간 커뮤니티</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 0 20px; background: #f4f4f9; }
+        #input-area { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input { display: block; width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 5px; }
+        button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #board { list-style: none; padding: 0; margin-top: 20px; }
+        .post-item { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 5px solid #007bff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .post-author { font-weight: bold; color: #333; }
+        .post-time { font-size: 0.8rem; color: #888; margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <h2>🚀 실시간 익명 게시판</h2>
+    <div id="input-area">
+        <input id="name" placeholder="닉네임 (익명)">
+        <input id="content" placeholder="무슨 생각을 하고 계신가요?">
+        <button onclick="send()">게시하기</button>
+    </div>
+    <ul id="board"></ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const board = document.getElementById('board');
+
+        function createPostElement(post) {
+            const li = document.createElement('li');
+            li.className = 'post-item';
+            const date = new Date(post.created_at).toLocaleString();
+            li.innerHTML = `<span class="post-author">${post.author}</span><span class="post-time">${date}</span><p>${post.content}</p>`;
+            return li;
+        }
+
+        socket.on('load posts', (posts) => {
+            board.innerHTML = '';
+            posts.forEach(post => board.appendChild(createPostElement(post)));
+        });
+
+        socket.on('render post', (post) => {
+            board.prepend(createPostElement(post));
+        });
+
+        function send() {
+            const author = document.getElementById('name').value || "익명";
+            const content = document.getElementById('content').value;
+            if(!content) return alert("내용을 입력하세요!");
+            socket.emit('new post', { author, content });
+            document.getElementById('content').value = ''; // 입력창 비우기
+        }
+    </script>
+</body>
+</html>
