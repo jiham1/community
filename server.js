@@ -1,13 +1,20 @@
+// server.js 파일 상단부
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const { Pool } = require('pg');
-const path = require('path');
+const path = require('path'); // 이 줄이 있어야 Not Found를 해결합니다!
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
 
+// 🔍 여기가 소켓 설정 부분입니다! (CORS 허용 필수)
+const io = new Server(server, { 
+  cors: { 
+    origin: "*", 
+    methods: ["GET", "POST"] 
+  } 
+});
 // Neon DB 연결 설정 (환경 변수 사용)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
