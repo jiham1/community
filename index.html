@@ -118,3 +118,104 @@
     </script>
 </body>
 </html>
+<style>
+    .post-content-area { display: none; background: #f9f9f9; padding: 15px; border-bottom: 1px solid #ddd; }
+    .content-text { font-size: 14px; line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap; }
+    
+    /* 댓글 스타일 */
+    .comment-section { border-top: 1px dashed #ccc; padding-top: 10px; }
+    .comment-item { font-size: 11px; padding: 5px 0; border-bottom: 1px solid #eee; }
+    .comment-author { font-weight: bold; color: #294870; margin-right: 10px; }
+    
+    .comment-form { margin-top: 10px; display: flex; gap: 5px; }
+    .comment-form input { font-size: 11px; padding: 5px; border: 1px solid #ccc; }
+    .btn-comment { background: #666; color: #fff; border: none; padding: 5px 10px; cursor: pointer; }
+</style>
+
+<script>
+    const socket = io(); // 친구는 여기에 내 주소!
+
+    // 글 목록 그리기 (클릭 이벤트 추가)
+    function addPostToTable(post, isNew = false) {
+        const tr = document.createElement('tr');
+        tr.setAttribute('id', `post-${post.id}`);
+        tr.innerHTML = `
+            <td>-</td>
+            <td class="td-title" onclick="togglePost(${post.id})"><b>${post.title}</b></td>
+            <td>${post.author}</td>
+            <td>${formatDate(post.created_at)}</td>
+        `;
+        
+        // 내용 및 댓글 영역 (숨겨져 있음)
+        const contentTr = document.createElement('tr');
+        contentTr.id = `content-${post.id}`;
+        contentTr.className = 'post-content-area';
+        contentTr.innerHTML = `
+            <td colspan="4">
+                <div class="content-text">${post.content}</div>
+                <div class="comment-section">
+                    <div id="comments-${post.id}"></div>
+                    <div class="comment-form">
+                        <input id="c-auth-${post.id}" placeholder="닉네임" style="width:60px">
+                        <input id="c-text-${post.id}" placeholder="댓글 내용" style="flex:1">
+                        <button class="btn-comment" onclick="submitComment(${post.id})">등록</button>
+                    </div>
+                </div>
+            </td>
+        `;
+
+        if (isNew) {
+            postList.prepend(contentTr);
+            postList.prepend(tr);
+        } else {
+            postList.appendChild(tr);
+            postList.appendChild(contentTr);
+        }
+    }
+
+    // 제목 클릭 시 내용 펼치기
+    async function togglePost(postId) {
+        const area = document.getElementById(`content-${postId}`);
+        if (area.style.display === 'table-row') {
+            area.style.display = 'none';
+        } else {
+            area.style.display = 'table-row';
+            loadComments(postId); // 펼칠 때 댓글 불러오기
+        }
+    }
+
+    // 댓글 불러오기
+    async function loadComments(postId) {
+        const res = await fetch(`/api/comments/${postId}`);
+        const comments = await res.json();
+        const div = document.getElementById(`comments-${postId}`);
+        div.innerHTML = comments.map(c => `
+            <div class="comment-item">
+                <span class="comment-author">${c.author}</span>
+                <span>${c.content}</span>
+            </div>
+        `).join('');
+    }
+
+    // 댓글 등록
+    async function submitComment(postId) {
+        const author = document.getElementById(`c-auth-${postId}`).value;
+        const content = document.getElementById(`c-text-${postId}`).value;
+        if(!author || !content) return alert("내용을 입력하세요");
+
+        await fetch('/api/posts/../api/comments', { // 경로 주의
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ post_id: postId, author, content })
+        });
+        
+        document.getElementById(`c-text-${postId}`).value = '';
+        loadComments(postId); // 댓글 새로고침
+    }
+
+    // 실시간 댓글 업데이트
+    socket.on('new comment', (data) => {
+        const commentDiv = document.getElementById(`comments-${data.post_id}`);
+        if (commentDiv) loadComments(data.post_id);
+    });
+</script>
