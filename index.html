@@ -4,101 +4,116 @@
     <meta charset="UTF-8">
     <title>개발 갤러리</title>
     <style>
-        body { font-family: sans-serif; font-size: 12px; padding: 20px; line-height: 1.4; }
-        .container { max-width: 800px; margin: 0 auto; border: 1px solid #ccc; padding: 10px; }
-        .gallery-title { font-size: 18px; font-weight: bold; color: #294870; border-bottom: 2px solid #294870; padding-bottom: 5px; margin-bottom: 10px; }
+        body { font-family: sans-serif; font-size: 12px; padding: 20px; background:#fff; }
+        .container { max-width: 800px; margin: 0 auto; border: 1px solid #ccc; padding: 15px; }
+        .gallery-title { font-size: 20px; font-weight: bold; color: #294870; border-bottom: 2px solid #294870; padding-bottom: 10px; margin-bottom: 15px; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #f6f6f6; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; padding: 8px; }
-        td { border-bottom: 1px solid #eee; padding: 8px; text-align: center; }
+        th { background: #f6f6f6; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; padding: 8px; }
+        td { border-bottom: 1px solid #eee; padding: 10px; text-align: center; }
         .title-cell { text-align: left; cursor: pointer; color: #333; font-weight: bold; }
+        .title-cell:hover { text-decoration: underline; color: #294870; }
         
-        /* 펼쳐지는 내용 영역 */
-        .content-area { display: none; background: #fdfdfd; text-align: left; padding: 15px; border-bottom: 1px solid #ddd; }
-        .content-text { font-size: 13px; margin-bottom: 15px; white-space: pre-wrap; }
+        /* 🔥 내용이 나타나는 영역 (기본 숨김) */
+        .content-row { display: none; background: #fafafa; }
+        .content-box { text-align: left; padding: 20px; border-bottom: 1px solid #ddd; }
+        .text-body { font-size: 14px; white-space: pre-wrap; margin-bottom: 20px; color: #444; line-height: 1.6; }
         
-        /* 댓글 영역 */
-        .comment-box { border-top: 1px dashed #bbb; padding-top: 10px; font-size: 11px; }
-        .c-item { margin-bottom: 5px; border-bottom: 1px solid #f2f2f2; padding: 3px; }
-        .c-auth { font-weight: bold; color: #294870; }
-        .c-form { margin-top: 10px; display: flex; gap: 5px; }
+        /* 댓글창 */
+        .comment-area { border-top: 1px dashed #ccc; padding-top: 15px; background: #fdfdfd; }
+        .c-item { padding: 5px; border-bottom: 1px solid #f0f0f0; margin-bottom: 5px; }
+        .c-auth { font-weight: bold; color: #294870; margin-right: 8px; }
         
         /* 글쓰기 폼 */
-        .write-form { margin-top: 20px; background: #f9f9f9; padding: 15px; border: 1px solid #ddd; }
-        .write-form input, .write-form textarea { width: 100%; margin-bottom: 5px; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; }
-        .btn { background: #294870; color: #fff; border: none; padding: 10px; width: 100%; cursor: pointer; font-weight: bold; }
+        .write-form { margin-top: 30px; padding: 20px; background: #f9f9f9; border: 1px solid #ddd; }
+        .write-form input, textarea { width: 100%; padding: 10px; margin-bottom: 8px; box-sizing: border-box; border: 1px solid #ccc; }
+        .btn-post { background: #294870; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="gallery-title">개발 갤러리</div>
         <table>
-            <thead><tr><th>번호</th><th>제목</th><th>글쓴이</th><th>날짜</th></tr></thead>
+            <thead><tr><th width="60">번호</th><th>제목</th><th width="100">글쓴이</th><th width="80">날짜</th></tr></thead>
             <tbody id="list"></tbody>
         </table>
 
         <div class="write-form">
-            <input id="w-auth" placeholder="닉네임" style="width:49%">
-            <input id="w-pw" type="password" placeholder="비밀번호" style="width:49%">
-            <input id="w-title" placeholder="제목">
-            <textarea id="w-content" rows="4" placeholder="내용"></textarea>
-            <button class="btn" onclick="post()">등록</button>
+            <div style="display:flex; gap:10px;">
+                <input id="w-auth" placeholder="닉네임">
+                <input id="w-pw" type="password" placeholder="비밀번호">
+            </div>
+            <input id="w-title" placeholder="글 제목">
+            <textarea id="w-content" rows="5" placeholder="내용을 입력하세요"></textarea>
+            <button class="btn-post" onclick="submitPost()">새 글 등록</button>
         </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // ⚠️ 친구는 여기에 내 Render 주소 넣기! 예: io("https://abc.onrender.com")
-        const socket = io(); 
+        const socket = io(); // 친구는 여기에 본인 Render 주소!
 
-        // 글 목록 불러오기
         socket.on('load posts', (posts) => {
             document.getElementById('list').innerHTML = '';
             posts.forEach(p => addRow(p));
         });
 
-        // 새 글 실시간 추가
         socket.on('new post', (p) => addRow(p, true));
 
         function addRow(p, isNew = false) {
             const list = document.getElementById('list');
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${p.id}</td><td class="title-cell" onclick="toggle(${p.id})">${p.title}</td><td>${p.author}</td><td>${p.created_at.slice(5,10)}</td>`;
             
+            // 1. 제목 행
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${p.id}</td><td class="title-cell" onclick="toggleContent(${p.id})">${p.title}</td><td>${p.author}</td><td>${p.created_at.slice(5,10)}</td>`;
+            
+            // 2. 내용+댓글 행 (숨겨져 있음)
             const cTr = document.createElement('tr');
-            cTr.id = `view-${p.id}`;
-            cTr.className = 'content-area';
+            cTr.id = `content-row-${p.id}`;
+            cTr.className = 'content-row';
             cTr.innerHTML = `
                 <td colspan="4">
-                    <div class="content-text">${p.content}</div>
-                    <div class="comment-box">
-                        <div id="c-list-${p.id}"></div>
-                        <div class="c-form">
-                            <input id="ci-a-${p.id}" placeholder="닉네임" style="width:80px">
-                            <input id="ci-c-${p.id}" placeholder="댓글" style="flex:1">
-                            <button onclick="addComment(${p.id})">등록</button>
+                    <div class="content-box">
+                        <div class="text-body">${p.content}</div>
+                        <div class="comment-area">
+                            <div id="c-list-${p.id}" style="margin-bottom:10px;"></div>
+                            <div style="display:flex; gap:5px;">
+                                <input id="ci-a-${p.id}" placeholder="닉네임" style="width:80px; padding:5px;">
+                                <input id="ci-c-${p.id}" placeholder="댓글 내용" style="flex:1; padding:5px;">
+                                <button onclick="addComment(${p.id})" style="cursor:pointer">등록</button>
+                            </div>
                         </div>
                     </div>
                 </td>`;
+
             if(isNew) { list.prepend(cTr); list.prepend(tr); }
             else { list.appendChild(tr); list.appendChild(cTr); }
         }
 
-        function toggle(id) {
-            const el = document.getElementById(`view-${id}`);
-            const visible = el.style.display === 'table-row';
-            el.style.display = visible ? 'none' : 'table-row';
-            if(!visible) loadComments(id);
+        // 제목 클릭 시 실행되는 함수
+        function toggleContent(id) {
+            const row = document.getElementById(`content-row-${id}`);
+            const isVisible = row.style.display === 'table-row';
+            
+            // 모든 내용을 일단 닫고 싶다면 아래 주석 해제 (하나씩만 열리게 함)
+            // document.querySelectorAll('.content-row').forEach(r => r.style.display = 'none');
+
+            row.style.display = isVisible ? 'none' : 'table-row';
+            if(!isVisible) loadComments(id);
         }
 
-        async function post() {
-            const data = {
-                author: document.getElementById('w-auth').value,
-                password: document.getElementById('w-pw').value,
-                title: document.getElementById('w-title').value,
-                content: document.getElementById('w-content').value
-            };
-            await fetch('/api/posts', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)});
-            document.getElementById('w-title').value = ''; document.getElementById('w-content').value = '';
+        async function submitPost() {
+            const author = document.getElementById('w-auth').value;
+            const title = document.getElementById('w-title').value;
+            const content = document.getElementById('w-content').value;
+            if(!author || !title || !content) return alert("내용을 다 채워주세요!");
+
+            await fetch('/api/posts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ author, title, content, password: document.getElementById('w-pw').value })
+            });
+            document.getElementById('w-title').value = ''; 
+            document.getElementById('w-content').value = '';
         }
 
         async function loadComments(id) {
@@ -112,12 +127,16 @@
         async function addComment(id) {
             const author = document.getElementById(`ci-a-${id}`).value;
             const content = document.getElementById(`ci-c-${id}`).value;
-            await fetch('/api/comments', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({post_id: id, author, content})});
+            if(!author || !content) return alert("댓글을 입력하세요!");
+
+            await fetch('/api/comments', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ post_id: id, author, content })
+            });
             document.getElementById(`ci-c-${id}`).value = '';
             loadComments(id);
         }
-
-        socket.on('new comment', (c) => { if(document.getElementById(`view-${c.post_id}`).style.display === 'table-row') loadComments(c.post_id); });
     </script>
 </body>
 </html>
