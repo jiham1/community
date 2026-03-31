@@ -69,3 +69,31 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// ... 앞부분(express, pool 설정 등) 동일 ...
+
+// [추가] 댓글 목록 가져오기 API
+app.get('/api/comments/:postId', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM comments WHERE post_id = $1 ORDER BY created_at ASC', [req.params.postId]);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).send('댓글 로드 실패');
+    }
+});
+
+// [추가] 댓글 쓰기 API
+app.post('/api/comments', async (req, res) => {
+    try {
+        const { post_id, author, content } = req.body;
+        const result = await pool.query(
+            'INSERT INTO comments (post_id, author, content) VALUES ($1, $2, $3) RETURNING *',
+            [post_id, author, content]
+        );
+        io.emit('new comment', result.rows[0]); // 실시간 댓글 알림
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).send('댓글 저장 실패');
+    }
+});
+
+// ... 뒷부분(listen 등) 동일 ...
