@@ -16,25 +16,20 @@ const pool = new Pool({
 app.use(express.static(__dirname));
 app.use(express.json());
 
-// 메인 페이지
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-// 게시글 저장
+// 글 저장 (content 포함)
 app.post('/api/posts', async (req, res) => {
-  try {
-    const { author, password, title, content } = req.body;
-    const result = await pool.query(
-      'INSERT INTO posts (author, password, title, content) VALUES ($1, $2, $3, $4) RETURNING *',
-      [author, password, title, content]
-    );
-    io.emit('new post', result.rows[0]);
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
+  const { author, password, title, content } = req.body;
+  const result = await pool.query(
+    'INSERT INTO posts (author, password, title, content) VALUES ($1, $2, $3, $4) RETURNING *',
+    [author, password, title, content]
+  );
+  io.emit('new post', result.rows[0]); // 실시간 전송
+  res.json(result.rows[0]);
 });
 
-// 댓글 목록 가져오기
+// 댓글 로드
 app.get('/api/comments/:postId', async (req, res) => {
   const result = await pool.query('SELECT * FROM comments WHERE post_id = $1 ORDER BY created_at ASC', [req.params.postId]);
   res.json(result.rows);
@@ -48,7 +43,7 @@ app.post('/api/comments', async (req, res) => {
   res.json(result.rows[0]);
 });
 
-// 초기 데이터 로드
+// 초기 접속 시 모든 데이터(content 포함) 로드
 io.on('connection', async (socket) => {
   const result = await pool.query('SELECT * FROM posts ORDER BY created_at DESC LIMIT 50');
   socket.emit('load posts', result.rows);
@@ -57,4 +52,4 @@ io.on('connection', async (socket) => {
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server on ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on ${PORT}`));
