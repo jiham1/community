@@ -2,43 +2,47 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>커뮤니티</title>
+    <title>개발 갤러리</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border: 1px solid #ccc; min-height: 600px; border-radius: 8px; }
-        h1 { color: #294870; cursor: pointer; text-align: center; margin-bottom: 30px; }
+        body { font-family: 'Malgun Gothic', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 850px; margin: 0 auto; background: #fff; padding: 30px; border: 1px solid #ccc; min-height: 700px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #294870; cursor: pointer; text-align: center; border-bottom: 2px solid #294870; padding-bottom: 15px; margin-bottom: 20px; }
         
-        /* 목록 화면 */
-        .list-view table { width: 100%; border-collapse: collapse; }
-        .list-view th { background: #f8f9fa; border-bottom: 2px solid #ddd; padding: 12px; font-size: 14px; }
-        .list-view td { border-bottom: 1px solid #eee; padding: 12px; text-align: center; }
-        .title-link { text-align: left; font-weight: bold; cursor: pointer; color: #333; font-size: 15px; }
-        .title-link:hover { color: #294870; text-decoration: underline; }
+        /* 목록 테이블 정렬 */
+        .list-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .list-table th { background: #f8f9fa; border-bottom: 1px solid #ddd; padding: 12px; font-size: 13px; color: #666; }
+        .list-table td { border-bottom: 1px solid #eee; padding: 12px; font-size: 13px; vertical-align: middle; }
         
-        /* 상세 화면 (기본 숨김) */
+        /* 컬럼별 너비 및 정렬 */
+        .col-title { text-align: left; padding-left: 20px !important; cursor: pointer; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .col-auth { width: 120px; text-align: center; color: #444; }
+        .col-vote { width: 60px; text-align: center; color: #ff4500; font-weight: bold; }
+        .col-date { width: 80px; text-align: center; color: #888; }
+
+        /* 상세 페이지 */
         #post-view { display: none; }
-        .post-header { border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
-        .v-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-        .v-info { color: #888; font-size: 12px; }
-        .v-content { font-size: 16px; line-height: 1.8; white-space: pre-wrap; padding: 20px 0; border-bottom: 1px solid #eee; }
+        .v-header { border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
+        .v-title { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 10px; }
+        .v-content { font-size: 16px; line-height: 1.8; white-space: pre-wrap; padding: 30px 0; min-height: 200px; color: #333; }
         
-        /* 추천 영역 */
-        .vote-box { text-align: center; margin: 30px 0; }
-        .vote-btn { padding: 10px 20px; margin: 0 5px; cursor: pointer; border: 1px solid #ddd; background: #fff; border-radius: 4px; font-weight: bold; }
+        /* 버튼 & 댓글 */
+        .vote-box { text-align: center; margin: 40px 0; }
+        .vote-btn { padding: 12px 25px; margin: 0 8px; cursor: pointer; border: 1px solid #ddd; background: #fff; border-radius: 5px; font-weight: bold; transition: 0.2s; }
         .btn-up { color: #ff4500; border-color: #ff4500; }
+        .btn-up:hover { background: #fff5f2; }
         .btn-down { color: #1e90ff; border-color: #1e90ff; }
+        .btn-down:hover { background: #f2f8ff; }
 
-        /* 댓글 영역 */
-        .comment-area { background: #f9f9f9; padding: 20px; border-radius: 4px; }
-        .c-item { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 13px; }
-        .c-auth { font-weight: bold; margin-right: 10px; color: #294870; }
-        .c-form { display: flex; gap: 5px; margin-top: 15px; }
-        .c-form input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .comment-section { background: #f9f9f9; padding: 20px; border-radius: 5px; margin-top: 30px; }
+        .c-item { border-bottom: 1px solid #eee; padding: 10px 5px; font-size: 13px; }
+        .c-auth { font-weight: bold; color: #294870; margin-right: 10px; }
+        .c-form { display: flex; gap: 8px; margin-top: 20px; }
+        .c-form input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
 
-        /* 글쓰기 폼 */
-        .write-form { margin-top: 40px; padding: 20px; border-top: 2px solid #294870; }
-        .write-form input, .write-form textarea { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        .btn-post { background: #294870; color: white; border: none; padding: 15px; width: 100%; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 4px; }
+        /* 글쓰기 */
+        .write-form { margin-top: 50px; padding: 25px; border-top: 2px solid #294870; background: #fafafa; }
+        .write-form input, .write-form textarea { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .btn-submit { background: #294870; color: #fff; border: none; padding: 15px; width: 100%; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -47,25 +51,32 @@
     <h1 onclick="location.href='/'">개발 갤러리</h1>
 
     <div id="list-view">
-        <table>
-            <thead><tr><th>제목</th><th width="100">글쓴이</th><th width="60">추천</th><th width="80">날짜</th></tr></thead>
+        <table class="list-table">
+            <thead>
+                <tr>
+                    <th>제목</th>
+                    <th class="col-auth">글쓴이</th>
+                    <th class="col-vote">추천</th>
+                    <th class="col-date">날짜</th>
+                </tr>
+            </thead>
             <tbody id="post-list"></tbody>
         </table>
         <div class="write-form">
             <div style="display:flex; gap:10px;">
-                <input id="w-auth" placeholder="닉네임">
-                <input id="w-pw" type="password" placeholder="비밀번호">
+                <input id="w-auth" placeholder="닉네임" style="width:50%">
+                <input id="w-pw" type="password" placeholder="비밀번호" style="width:50%">
             </div>
-            <input id="w-title" placeholder="글 제목을 입력하세요">
+            <input id="w-title" placeholder="제목을 입력하세요">
             <textarea id="w-content" rows="6" placeholder="내용을 입력하세요"></textarea>
-            <button class="btn-post" onclick="submitPost()">등록하기</button>
+            <button class="btn-submit" onclick="submitPost()">등록하기</button>
         </div>
     </div>
 
     <div id="post-view">
-        <div class="post-header">
+        <div class="v-header">
             <div id="v-title" class="v-title"></div>
-            <div id="v-info" class="v-info"></div>
+            <div id="v-info" style="color:#888; font-size:12px;"></div>
         </div>
         <div id="v-content" class="v-content"></div>
         
@@ -74,15 +85,15 @@
             <button class="vote-btn btn-down" onclick="vote('down')">비추천 <span id="v-down">0</span></button>
         </div>
 
-        <div class="comment-area">
+        <div class="comment-section">
             <div id="c-list"></div>
             <div class="c-form">
-                <input id="ci-a" placeholder="닉네임" style="width:100px;">
+                <input id="ci-a" placeholder="닉네임" style="width:120px;">
                 <input id="ci-c" placeholder="댓글 내용" style="flex:1;">
-                <button onclick="addComment()" style="cursor:pointer; padding: 0 15px;">등록</button>
+                <button onclick="addComment()" style="padding:0 20px; cursor:pointer;">등록</button>
             </div>
         </div>
-        <button onclick="location.href='/'" style="margin-top:20px; width:100%; padding:10px; cursor:pointer;">목록으로 돌아가기</button>
+        <button onclick="location.href='/'" style="margin-top:30px; width:100%; padding:12px; cursor:pointer; background:#666; color:#fff; border:none; border-radius:4px;">목록으로 돌아가기</button>
     </div>
 </div>
 
@@ -91,69 +102,47 @@
     const socket = io(); 
     const path = window.location.pathname;
 
-    // 초기 실행: 주소창 확인 후 목록 혹은 상세페이지 표시
     window.onload = () => {
         if (path.startsWith('/post/')) {
-            const id = path.split('/')[2];
-            showDetail(id);
+            showDetail(path.split('/')[2]);
         } else {
             loadList();
         }
     };
 
-    // [목록] 데이터 불러오기
     async function loadList() {
         document.getElementById('list-view').style.display = 'block';
         document.getElementById('post-view').style.display = 'none';
         const res = await fetch('/api/posts');
         const posts = await res.json();
-        const list = document.getElementById('post-list');
-        list.innerHTML = posts.map(p => `
+        document.getElementById('post-list').innerHTML = posts.map(p => `
             <tr>
-                <td class="title-link" onclick="location.href='/post/${p.id}'">${p.title}</td>
-                <td>${p.author}</td>
-                <td style="color:#ff4500; font-weight:bold;">${p.likes}</td>
-                <td>${p.created_at.slice(5,10)}</td>
+                <td class="col-title" onclick="location.href='/post/${p.id}'">${p.title}</td>
+                <td class="col-auth">${p.author}</td>
+                <td class="col-vote">${p.likes}</td>
+                <td class="col-date">${p.created_at.slice(5,10)}</td>
             </tr>
         `).join('');
     }
 
-    // [상세] 데이터 불러오기 (내용이 안 뜨는 현상 방지)
     async function showDetail(id) {
         document.getElementById('list-view').style.display = 'none';
         document.getElementById('post-view').style.display = 'block';
-        
         const res = await fetch(`/api/get-post/${id}`);
         const p = await res.json();
-        if(!p) return alert("삭제된 글입니다.");
-
+        
         document.getElementById('v-title').innerText = p.title;
-        document.getElementById('v-info').innerText = `작성자: ${p.author} | 날짜: ${p.created_at.slice(0,10)}`;
+        document.getElementById('v-info').innerText = `작성자: ${p.author} | ${p.created_at.slice(0,10)}`;
         document.getElementById('v-content').innerText = p.content;
         document.getElementById('v-up').innerText = p.likes;
         document.getElementById('v-down').innerText = p.dislikes;
-        
         loadComments(id);
     }
 
-    // [글등록]
-    async function submitPost() {
-        const auth = document.getElementById('w-auth').value;
-        const title = document.getElementById('w-title').value;
-        const content = document.getElementById('w-content').value;
-        if(!title || !content) return alert("내용을 입력해주세요.");
-
-        await fetch('/api/posts', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ author: auth, title, content, password: document.getElementById('w-pw').value })
-        });
-        location.href = '/'; // 등록 후 메인으로
-    }
-
-    // [추천]
     async function vote(type) {
-        const id = window.location.pathname.split('/')[2];
+        const id = path.split('/')[2];
+        if(localStorage.getItem('voted_'+id)) return alert("이미 참여하셨습니다.");
+
         const res = await fetch(`/api/vote/${id}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -162,32 +151,41 @@
         const updated = await res.json();
         document.getElementById('v-up').innerText = updated.likes;
         document.getElementById('v-down').innerText = updated.dislikes;
+        localStorage.setItem('voted_'+id, 'true');
     }
 
-    // [댓글]
+    async function submitPost() {
+        const title = document.getElementById('w-title').value;
+        const content = document.getElementById('w-content').value;
+        if(!title || !content) return alert("내용을 채워주세요.");
+        await fetch('/api/posts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ author: document.getElementById('w-auth').value, title, content, password: document.getElementById('w-pw').value })
+        });
+        location.href = '/';
+    }
+
     async function loadComments(postId) {
         const res = await fetch(`/api/comments/${postId}`);
         const data = await res.json();
         document.getElementById('c-list').innerHTML = data.map(c => `
-            <div class="c-item"><span class="c-auth">${c.author}</span> ${c.content}</div>
+            <div class="c-item"><span class="c-auth">${c.author}</span>${c.content}</div>
         `).join('');
     }
 
     async function addComment() {
-        const postId = window.location.pathname.split('/')[2];
-        const author = document.getElementById('ci-a').value;
-        const content = document.getElementById('ci-c').value;
-        if(!content) return;
+        const postId = path.split('/')[2];
         await fetch('/api/comments', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ post_id: postId, author, content })
+            body: JSON.stringify({ post_id: postId, author: document.getElementById('ci-a').value, content: document.getElementById('ci-c').value })
         });
         document.getElementById('ci-c').value = '';
         loadComments(postId);
     }
 
-    socket.on('update', () => { if(window.location.pathname === '/') loadList(); });
+    socket.on('update', loadList);
 </script>
 </body>
 </html>
