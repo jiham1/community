@@ -14,9 +14,14 @@ const pool = new Pool({
 });
 
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(__dirname + '/public'));
 
-// 1. 게시글 목록 가져오기
+// ✅ 루트 경로 직접 서빙
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/index.html');
+});
+
+// 1. 게시글 목록
 app.get('/api/posts', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM posts ORDER BY id DESC');
@@ -26,7 +31,7 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
-// 2. 게시글 상세보기
+// 2. 게시글 상세
 app.get('/api/get-post/:id', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM posts WHERE id = $1', [req.params.id]);
@@ -41,7 +46,7 @@ app.post('/api/posts', async (req, res) => {
   const { title, content, author } = req.body;
   try {
     await pool.query(
-      'INSERT INTO posts (title, content, author) VALUES ($1, $2, $3)', 
+      'INSERT INTO posts (title, content, author) VALUES ($1, $2, $3)',
       [title, content, author || '익명']
     );
     io.emit('update');
@@ -52,11 +57,11 @@ app.post('/api/posts', async (req, res) => {
   }
 });
 
-// 4. 댓글 목록 가져오기
+// 4. 댓글 목록
 app.get('/api/comments/:postId', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM comments WHERE post_id = $1 ORDER BY id ASC', 
+      'SELECT * FROM comments WHERE post_id = $1 ORDER BY id ASC',
       [req.params.postId]
     );
     res.json(result.rows);
@@ -65,21 +70,19 @@ app.get('/api/comments/:postId', async (req, res) => {
   }
 });
 
-// 5. 댓글 작성 (비밀번호 확인 로직 포함)
+// 5. 댓글 작성
 app.post('/api/comments', async (req, res) => {
   const { post_id, author, content, password } = req.body;
   try {
     const check = await pool.query(
-      'SELECT password FROM comments WHERE author = $1 ORDER BY id DESC LIMIT 1', 
+      'SELECT password FROM comments WHERE author = $1 ORDER BY id DESC LIMIT 1',
       [author]
     );
-
     if (check.rows.length > 0 && check.rows[0].password) {
       if (check.rows[0].password !== password) {
         return res.status(403).send("비밀번호 불일치");
       }
     }
-
     await pool.query(
       'INSERT INTO comments (post_id, author, content, password) VALUES ($1, $2, $3, $4)',
       [post_id, author || '익명', content, password]
@@ -95,5 +98,5 @@ app.post('/api/comments', async (req, res) => {
 // 서버 실행
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
