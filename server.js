@@ -14,7 +14,7 @@ const pool = new Pool({
 });
 
 app.use(express.json());
-app.use(express.static('public')); // public 폴더 안의 index.html 등을 제공
+app.use(express.static('public'));
 
 // 1. 게시글 목록 가져오기
 app.get('/api/posts', async (req, res) => {
@@ -36,15 +36,15 @@ app.get('/api/get-post/:id', async (req, res) => {
   }
 });
 
-// 3. 게시글 작성 (에러 방지를 위해 author 기본값 설정)
+// 3. 게시글 작성
 app.post('/api/posts', async (req, res) => {
   const { title, content, author } = req.body;
   try {
     await pool.query(
       'INSERT INTO posts (title, content, author) VALUES ($1, $2, $3)', 
-      [title, content, author || '익명'] // author가 없으면 '익명' 저장
+      [title, content, author || '익명']
     );
-    io.emit('update'); // 실시간 목록 업데이트 신호
+    io.emit('update');
     res.sendStatus(200);
   } catch (err) {
     console.error(err);
@@ -69,7 +69,6 @@ app.get('/api/comments/:postId', async (req, res) => {
 app.post('/api/comments', async (req, res) => {
   const { post_id, author, content, password } = req.body;
   try {
-    // 닉네임 사칭 방지: 해당 닉네임으로 작성된 가장 최근 댓글의 비번 확인
     const check = await pool.query(
       'SELECT password FROM comments WHERE author = $1 ORDER BY id DESC LIMIT 1', 
       [author]
@@ -81,12 +80,11 @@ app.post('/api/comments', async (req, res) => {
       }
     }
 
-    // 비밀번호가 맞거나 처음 쓰는 닉네임이면 저장
     await pool.query(
       'INSERT INTO comments (post_id, author, content, password) VALUES ($1, $2, $3, $4)',
       [post_id, author || '익명', content, password]
     );
-    io.emit('update-comments'); // 실시간 댓글 업데이트 신호
+    io.emit('update-comments');
     res.sendStatus(200);
   } catch (err) {
     console.error(err);
