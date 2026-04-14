@@ -3,9 +3,6 @@ const { Pool } = require('pg');
 const http = require('http');
 const { Server } = require('socket.io');
 
-const cors = require('cors');
-app.use(cors({ origin: 'my-community-8a9k.onrender.com' }));
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
