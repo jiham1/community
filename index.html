@@ -1,131 +1,68 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My Community</title>
+    <title>My Gallery</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #fff; }
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
         .post-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
-        .v-content { min-height: 200px; border-top: 1px solid #ccc; padding: 20px 0; line-height: 1.6; }
-        input, textarea { width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box; }
-        .comment-item { padding: 10px 0; border-bottom: 1px solid #f9f9f9; font-size: 14px; }
-        .vote-btn { padding: 5px 15px; cursor: pointer; margin-right: 5px; }
-        img { max-width: 100%; border-radius: 5px; }
+        .v-content { min-height: 200px; border-top: 1px solid #ccc; padding: 20px 0; }
+        img { max-width: 100%; border-radius: 5px; margin: 10px 0; }
+        input, textarea { width: 100%; margin-bottom: 5px; padding: 8px; box-sizing: border-box; }
     </style>
 </head>
 <body>
-
 <div id="list-view">
-    <h1>갤러리 목록</h1>
+    <h1>갤러리</h1>
     <div id="post-list"></div>
     <hr>
-    <h3>글쓰기</h3>
     <input id="title" placeholder="제목">
-    <textarea id="content" placeholder="내용 (GIF 주소를 넣으면 화면에 뜹니다)"></textarea>
+    <textarea id="content" placeholder="내용/GIF링크"></textarea>
     <button onclick="writePost()">글쓰기</button>
 </div>
-
 <div id="post-view" style="display:none;">
     <h2 id="v-title"></h2>
     <div id="v-content" class="v-content"></div>
-    
     <div id="comment-section">
         <h4>댓글</h4>
         <div id="c-list"></div>
-        <div style="display:flex; gap:5px; margin-top:10px;">
-            <input id="c-auth" placeholder="닉네임" style="flex:1;">
-            <input id="c-pw" type="password" placeholder="비번" style="flex:1;">
-        </div>
+        <input id="c-auth" placeholder="닉네임" style="width:48%">
+        <input id="c-pw" type="password" placeholder="비번" style="width:48%">
         <textarea id="c-content" placeholder="댓글 내용"></textarea>
-        <button onclick="postComment()">댓글 등록</button>
+        <button onclick="postComment()">등록</button>
     </div>
-    <br>
-    <button onclick="location.href='/'">목록으로</button>
+    <button onclick="location.reload()">목록으로</button>
 </div>
-
 <script src="/socket.io/socket.io.js"></script>
 <script>
-    const socket = io();
-
+    const socket = io(); let curId = null;
     async function loadPosts() {
-        const res = await fetch('/api/posts');
-        const posts = await res.json();
-        document.getElementById('post-list').innerHTML = posts.map(p => `
-            <div class="post-item" onclick="showDetail(${p.id})">
-                <strong>${p.title}</strong>
-            </div>
-        `).join('');
+        const res = await fetch('/api/posts'); const posts = await res.json();
+        document.getElementById('post-list').innerHTML = posts.map(p => `<div class="post-item" onclick="showDetail(${p.id})"><strong>${p.title}</strong></div>`).join('');
     }
-
     async function showDetail(id) {
-        document.getElementById('list-view').style.display = 'none';
-        document.getElementById('post-view').style.display = 'block';
-
-        const res = await fetch(`/api/get-post/${id}`);
-        const p = await res.json();
+        curId = id; document.getElementById('list-view').style.display = 'none'; document.getElementById('post-view').style.display = 'block';
+        const res = await fetch(`/api/get-post/${id}`); const p = await res.json();
         document.getElementById('v-title').innerText = p.title;
-
-        // GIF/이미지 링크 판별 로직
-        const contentArea = document.getElementById('v-content');
-        const contentText = p.content.trim();
-        if (contentText.match(/\.(jpeg|jpg|gif|png)$/i) || contentText.startsWith('http')) {
-            contentArea.innerHTML = `<img src="${contentText}" onerror="this.outerHTML='<p>${contentText}</p>'">`;
-        } else {
-            contentArea.innerText = contentText;
-        }
-
+        const cA = document.getElementById('v-content'); const cT = p.content.trim();
+        if (cT.match(/\.(jpg|gif|png)$/i) || cT.startsWith('http')) cA.innerHTML = `<img src="${cT}" onerror="this.outerHTML='<p>${cT}</p>'">`;
+        else cA.innerText = cT;
         loadComments(id);
     }
-
     async function writePost() {
-        const title = document.getElementById('title').value;
-        const content = document.getElementById('content').value;
-        await fetch('/api/posts', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({title, content})
-        });
+        const title = document.getElementById('title').value; const content = document.getElementById('content').value;
+        await fetch('/api/posts', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({title, content}) });
         location.reload();
     }
-
-    async function loadComments(postId) {
-        const res = await fetch(`/api/comments/${postId}`);
-        const comments = await res.json();
-        document.getElementById('c-list').innerHTML = comments.map(c => `
-            <div class="comment-item">
-                <b>${c.author}</b>: ${c.content}
-            </div>
-        `).join('');
+    async function loadComments(id) {
+        const res = await fetch(`/api/comments/${id}`); const data = await res.json();
+        document.getElementById('c-list').innerHTML = data.map(c => `<div style="border-bottom:1px solid #eee; padding:5px;"><b>${c.author}</b>: ${c.content}</div>`).join('');
     }
-
     async function postComment() {
-        const urlParams = new URLSearchParams(window.location.search); // 실제 환경에선 경로에서 ID 추출 필요
-        // 간단하게 현재 보이는 글의 ID를 가져오기 위해 전역변수나 DOM 속성 사용 권장
-        const postId = currentPostId; 
-        const author = document.getElementById('c-auth').value;
-        const password = document.getElementById('c-pw').value;
-        const content = document.getElementById('c-content').value;
-
-        const res = await fetch('/api/comments', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({post_id: postId, author, password, content})
-        });
-
-        if (res.status === 403) alert("비밀번호가 틀렸습니다!");
-        else if (res.ok) {
-            document.getElementById('c-content').value = '';
-            loadComments(postId);
-        }
+        const author = document.getElementById('c-auth').value; const password = document.getElementById('c-pw').value; const content = document.getElementById('c-content').value;
+        const res = await fetch('/api/comments', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({post_id: curId, author, password, content}) });
+        if (res.status === 403) alert("비밀번호 틀림!"); else { document.getElementById('c-content').value = ''; loadComments(curId); }
     }
-
-    // 초기 로드
-    let currentPostId = null;
-    const originalShowDetail = showDetail;
-    showDetail = (id) => { currentPostId = id; originalShowDetail(id); };
-
-    loadPosts();
-    socket.on('update', loadPosts);
-    socket.on('update-comments', () => currentPostId && loadComments(currentPostId));
+    loadPosts(); socket.on('update', loadPosts); socket.on('update-comments', () => curId && loadComments(curId));
 </script>
 </body>
 </html>
