@@ -7,19 +7,16 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// DB 연결 설정
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
 app.use(express.json());
-app.use(express.static(__dirname + '/public'));
 
-// ✅ 루트 경로 직접 서빙
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
-});
+// ✅ 루트 & /post/:id 경로 모두 index.html 서빙
+app.get('/', (req, res) => res.sendFile(__dirname + '/index.html'));
+app.get('/post/:id', (req, res) => res.sendFile(__dirname + '/index.html'));
 
 // 1. 게시글 목록
 app.get('/api/posts', async (req, res) => {
@@ -43,21 +40,35 @@ app.get('/api/get-post/:id', async (req, res) => {
 
 // 3. 게시글 작성
 app.post('/api/posts', async (req, res) => {
-  const { title, content, author } = req.body;
+  const { title, content, author, password } = req.body;
   try {
     await pool.query(
-      'INSERT INTO posts (title, content, author) VALUES ($1, $2, $3)',
-      [title, content, author || '익명']
+      'INSERT INTO posts (title, content, author, password) VALUES ($1, $2, $3, $4)',
+      [title, content, author || '익명', password]
     );
     io.emit('update');
     res.sendStatus(200);
   } catch (err) {
-    console.error(err);
     res.status(500).send(err.message);
   }
 });
 
-// 4. 댓글 목록
+// 4. 추천/비추천
+app.post('/api/vote/:id', async (req, res) => {
+  const { type } = req.body;
+  const col = type === 'up' ? 'likes' : 'dislikes';
+  try {
+    const result = await pool.query(
+      `UPDATE posts SET ${col} = ${col} + 1 WHERE id = $1 RETURNING likes, dislikes`,
+      [req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// 5. 댓글 목록
 app.get('/api/comments/:postId', async (req, res) => {
   try {
     const result = await pool.query(
@@ -70,33 +81,20 @@ app.get('/api/comments/:postId', async (req, res) => {
   }
 });
 
-// 5. 댓글 작성
+// 6. 댓글 작성
 app.post('/api/comments', async (req, res) => {
-  const { post_id, author, content, password } = req.body;
+  const { post_id, author, content } = req.body;
   try {
-    const check = await pool.query(
-      'SELECT password FROM comments WHERE author = $1 ORDER BY id DESC LIMIT 1',
-      [author]
-    );
-    if (check.rows.length > 0 && check.rows[0].password) {
-      if (check.rows[0].password !== password) {
-        return res.status(403).send("비밀번호 불일치");
-      }
-    }
     await pool.query(
-      'INSERT INTO comments (post_id, author, content, password) VALUES ($1, $2, $3, $4)',
-      [post_id, author || '익명', content, password]
+      'INSERT INTO comments (post_id, author, content) VALUES ($1, $2, $3)',
+      [post_id, author || '익명', content]
     );
     io.emit('update-comments');
     res.sendStatus(200);
   } catch (err) {
-    console.error(err);
     res.status(500).send(err.message);
   }
 });
 
-// 서버 실행
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
