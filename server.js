@@ -8,6 +8,11 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
+const cors = require('cors');
+app.use(cors()); // 모든 도메인 허용 (테스트용)
+// 또는 특정 도메인만 허용
+// app.use(cors({ origin: 'my-community-8a9k.onrender.com' }));
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
