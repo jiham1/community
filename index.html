@@ -7,46 +7,35 @@
         body { font-family: 'Malgun Gothic', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 850px; margin: 0 auto; background: #fff; padding: 30px; border: 1px solid #ccc; min-height: 700px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h1 { color: #294870; cursor: pointer; text-align: center; border-bottom: 2px solid #294870; padding-bottom: 15px; margin-bottom: 20px; }
-        
-        /* 목록 테이블 정렬 */
         .list-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .list-table th { background: #f8f9fa; border-bottom: 1px solid #ddd; padding: 12px; font-size: 13px; color: #666; }
         .list-table td { border-bottom: 1px solid #eee; padding: 12px; font-size: 13px; vertical-align: middle; }
-        
-        /* 컬럼별 너비 및 정렬 */
         .col-title { text-align: left; padding-left: 20px !important; cursor: pointer; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .col-auth { width: 120px; text-align: center; color: #444; }
         .col-vote { width: 60px; text-align: center; color: #ff4500; font-weight: bold; }
         .col-date { width: 80px; text-align: center; color: #888; }
-
-        /* 상세 페이지 */
         #post-view { display: none; }
         .v-header { border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
         .v-title { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 10px; }
-        .v-content { font-size: 16px; line-height: 1.8; white-space: pre-wrap; padding: 30px 0; min-height: 200px; color: #333; }
-        
-        /* 버튼 & 댓글 */
+        .v-content { font-size: 16px; line-height: 1.8; padding: 30px 0; min-height: 200px; color: #333; }
+        .v-content img { max-width: 100%; border-radius: 5px; }
         .vote-box { text-align: center; margin: 40px 0; }
         .vote-btn { padding: 12px 25px; margin: 0 8px; cursor: pointer; border: 1px solid #ddd; background: #fff; border-radius: 5px; font-weight: bold; transition: 0.2s; }
         .btn-up { color: #ff4500; border-color: #ff4500; }
         .btn-up:hover { background: #fff5f2; }
         .btn-down { color: #1e90ff; border-color: #1e90ff; }
         .btn-down:hover { background: #f2f8ff; }
-
         .comment-section { background: #f9f9f9; padding: 20px; border-radius: 5px; margin-top: 30px; }
         .c-item { border-bottom: 1px solid #eee; padding: 10px 5px; font-size: 13px; }
         .c-auth { font-weight: bold; color: #294870; margin-right: 10px; }
-        .c-form { display: flex; gap: 8px; margin-top: 20px; }
+        .c-form { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
         .c-form input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-
-        /* 글쓰기 */
         .write-form { margin-top: 50px; padding: 25px; border-top: 2px solid #294870; background: #fafafa; }
         .write-form input, .write-form textarea { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn-submit { background: #294870; color: #fff; border: none; padding: 15px; width: 100%; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 4px; }
     </style>
 </head>
 <body>
-
 <div class="container">
     <h1 onclick="location.href='/'">개발 갤러리</h1>
 
@@ -68,7 +57,7 @@
                 <input id="w-pw" type="password" placeholder="비밀번호" style="width:50%">
             </div>
             <input id="w-title" placeholder="제목을 입력하세요">
-            <textarea id="w-content" rows="6" placeholder="내용을 입력하세요"></textarea>
+            <textarea id="w-content" rows="6" placeholder="내용 또는 GIF 링크를 입력하세요"></textarea>
             <button class="btn-submit" onclick="submitPost()">등록하기</button>
         </div>
     </div>
@@ -78,17 +67,18 @@
             <div id="v-title" class="v-title"></div>
             <div id="v-info" style="color:#888; font-size:12px;"></div>
         </div>
+        <!-- ✅ GIF/이미지 자동 렌더링 -->
         <div id="v-content" class="v-content"></div>
-        
         <div class="vote-box">
             <button class="vote-btn btn-up" onclick="vote('up')">추천 <span id="v-up">0</span></button>
             <button class="vote-btn btn-down" onclick="vote('down')">비추천 <span id="v-down">0</span></button>
         </div>
-
         <div class="comment-section">
             <div id="c-list"></div>
+            <!-- ✅ 댓글에 비밀번호 추가 -->
             <div class="c-form">
-                <input id="ci-a" placeholder="닉네임" style="width:120px;">
+                <input id="ci-a" placeholder="닉네임" style="width:110px;">
+                <input id="ci-pw" type="password" placeholder="비밀번호" style="width:110px;">
                 <input id="ci-c" placeholder="댓글 내용" style="flex:1;">
                 <button onclick="addComment()" style="padding:0 20px; cursor:pointer;">등록</button>
             </div>
@@ -99,7 +89,7 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-    const socket = io(); 
+    const socket = io();
     const path = window.location.pathname;
 
     window.onload = () => {
@@ -130,10 +120,19 @@
         document.getElementById('post-view').style.display = 'block';
         const res = await fetch(`/api/get-post/${id}`);
         const p = await res.json();
-        
         document.getElementById('v-title').innerText = p.title;
         document.getElementById('v-info').innerText = `작성자: ${p.author} | ${p.created_at.slice(0,10)}`;
-        document.getElementById('v-content').innerText = p.content;
+
+        // ✅ GIF/이미지 링크 자동 렌더링
+        const contentEl = document.getElementById('v-content');
+        const text = p.content.trim();
+        if (text.match(/\.(gif|jpg|jpeg|png|webp)$/i) || text.startsWith('http')) {
+            contentEl.innerHTML = `<img src="${text}" onerror="this.outerHTML='<p style=white-space:pre-wrap>${text}</p>'">`;
+        } else {
+            contentEl.style.whiteSpace = 'pre-wrap';
+            contentEl.innerText = text;
+        }
+
         document.getElementById('v-up').innerText = p.likes;
         document.getElementById('v-down').innerText = p.dislikes;
         loadComments(id);
@@ -141,8 +140,7 @@
 
     async function vote(type) {
         const id = path.split('/')[2];
-        if(localStorage.getItem('voted_'+id)) return alert("이미 참여하셨습니다.");
-
+        if (localStorage.getItem('voted_' + id)) return alert("이미 참여하셨습니다.");
         const res = await fetch(`/api/vote/${id}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -151,18 +149,22 @@
         const updated = await res.json();
         document.getElementById('v-up').innerText = updated.likes;
         document.getElementById('v-down').innerText = updated.dislikes;
-        localStorage.setItem('voted_'+id, 'true');
+        localStorage.setItem('voted_' + id, 'true');
     }
 
     async function submitPost() {
+        const author = document.getElementById('w-auth').value;
+        const password = document.getElementById('w-pw').value;
         const title = document.getElementById('w-title').value;
         const content = document.getElementById('w-content').value;
-        if(!title || !content) return alert("내용을 채워주세요.");
-        await fetch('/api/posts', {
+        if (!author || !password) return alert("닉네임과 비밀번호를 입력해주세요.");
+        if (!title || !content) return alert("제목과 내용을 입력해주세요.");
+        const res = await fetch('/api/posts', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ author: document.getElementById('w-auth').value, title, content, password: document.getElementById('w-pw').value })
+            body: JSON.stringify({ author, title, content, password })
         });
+        if (res.status === 403) return alert("이미 사용 중인 닉네임입니다. 비밀번호를 확인해주세요.");
         location.href = '/';
     }
 
@@ -176,16 +178,25 @@
 
     async function addComment() {
         const postId = path.split('/')[2];
-        await fetch('/api/comments', {
+        const author = document.getElementById('ci-a').value;
+        const password = document.getElementById('ci-pw').value;
+        const content = document.getElementById('ci-c').value;
+        if (!author || !password) return alert("닉네임과 비밀번호를 입력해주세요.");
+        if (!content) return alert("댓글 내용을 입력해주세요.");
+        const res = await fetch('/api/comments', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ post_id: postId, author: document.getElementById('ci-a').value, content: document.getElementById('ci-c').value })
+            body: JSON.stringify({ post_id: postId, author, password, content })
         });
+        if (res.status === 403) return alert("이미 사용 중인 닉네임입니다. 비밀번호를 확인해주세요.");
         document.getElementById('ci-c').value = '';
         loadComments(postId);
     }
 
     socket.on('update', loadList);
+    socket.on('update-comments', () => {
+        if (path.startsWith('/post/')) loadComments(path.split('/')[2]);
+    });
 </script>
 </body>
 </html>
