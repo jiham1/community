@@ -7,18 +7,29 @@
         body { font-family: 'Malgun Gothic', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 850px; margin: 0 auto; background: #fff; padding: 30px; border: 1px solid #ccc; min-height: 700px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h1 { color: #294870; cursor: pointer; text-align: center; border-bottom: 2px solid #294870; padding-bottom: 15px; margin-bottom: 20px; }
+        .tabs { display: flex; gap: 0; margin-bottom: 15px; border-bottom: 2px solid #294870; }
+        .tab { padding: 10px 24px; cursor: pointer; font-size: 14px; font-weight: bold; color: #888; border: none; background: none; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: 0.2s; }
+        .tab.active { color: #294870; border-bottom: 3px solid #294870; }
+        .tab:hover { color: #294870; }
+        .hot-badge { font-size: 11px; background: #ff4500; color: #fff; border-radius: 3px; padding: 1px 5px; margin-left: 5px; }
         .list-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .list-table th { background: #f8f9fa; border-bottom: 1px solid #ddd; padding: 12px; font-size: 13px; color: #666; }
         .list-table td { border-bottom: 1px solid #eee; padding: 12px; font-size: 13px; vertical-align: middle; }
         .col-title { text-align: left; padding-left: 20px !important; cursor: pointer; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .col-auth { width: 120px; text-align: center; color: #444; }
-        .col-vote { width: 60px; text-align: center; color: #ff4500; font-weight: bold; }
-        .col-date { width: 80px; text-align: center; color: #888; }
+        .col-title .comment-cnt { color: #e25; font-size: 11px; margin-left: 5px; }
+        .col-auth { width: 100px; text-align: center; color: #444; }
+        .col-vote { width: 55px; text-align: center; font-weight: bold; }
+        .col-view { width: 55px; text-align: center; color: #888; }
+        .col-date { width: 70px; text-align: center; color: #888; }
+        .vote-pos { color: #ff4500; }
+        .vote-neg { color: #1e90ff; }
+        .vote-zero { color: #aaa; }
         #post-view { display: none; }
         .v-header { border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
         .v-title { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 10px; }
         .v-content { font-size: 16px; line-height: 1.8; padding: 30px 0; min-height: 200px; color: #333; }
         .v-content img { max-width: 100%; border-radius: 5px; }
+        .v-content a { color: #294870; word-break: break-all; }
         .vote-box { text-align: center; margin: 40px 0; }
         .vote-btn { padding: 12px 25px; margin: 0 8px; cursor: pointer; border: 1px solid #ddd; background: #fff; border-radius: 5px; font-weight: bold; transition: 0.2s; }
         .btn-up { color: #ff4500; border-color: #ff4500; }
@@ -33,6 +44,7 @@
         .write-form { margin-top: 50px; padding: 25px; border-top: 2px solid #294870; background: #fafafa; }
         .write-form input, .write-form textarea { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn-submit { background: #294870; color: #fff; border: none; padding: 15px; width: 100%; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 4px; }
+        .empty-msg { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -40,24 +52,33 @@
     <h1 onclick="location.href='/'">개발 갤러리</h1>
 
     <div id="list-view">
+        <!-- 탭 -->
+        <div class="tabs">
+            <button class="tab active" id="tab-all" onclick="switchTab('all')">전체글</button>
+            <button class="tab" id="tab-hot" onclick="switchTab('hot')">🔥 인기글</button>
+        </div>
+
         <table class="list-table">
             <thead>
                 <tr>
                     <th>제목</th>
                     <th class="col-auth">글쓴이</th>
-                    <th class="col-vote">추천</th>
+                    <th class="col-vote">순추천</th>
+                    <th class="col-view">조회</th>
                     <th class="col-date">날짜</th>
                 </tr>
             </thead>
             <tbody id="post-list"></tbody>
         </table>
+        <div id="empty-msg" class="empty-msg" style="display:none;">아직 인기글이 없어요 🥲</div>
+
         <div class="write-form">
             <div style="display:flex; gap:10px;">
                 <input id="w-auth" placeholder="닉네임" style="width:50%">
                 <input id="w-pw" type="password" placeholder="비밀번호" style="width:50%">
             </div>
             <input id="w-title" placeholder="제목을 입력하세요">
-            <textarea id="w-content" rows="6" placeholder="내용 또는 GIF 링크를 입력하세요"></textarea>
+            <textarea id="w-content" rows="6" placeholder="내용 또는 GIF/이미지 링크를 입력하세요"></textarea>
             <button class="btn-submit" onclick="submitPost()">등록하기</button>
         </div>
     </div>
@@ -67,7 +88,6 @@
             <div id="v-title" class="v-title"></div>
             <div id="v-info" style="color:#888; font-size:12px;"></div>
         </div>
-        <!-- ✅ GIF/이미지 자동 렌더링 -->
         <div id="v-content" class="v-content"></div>
         <div class="vote-box">
             <button class="vote-btn btn-up" onclick="vote('up')">추천 <span id="v-up">0</span></button>
@@ -75,10 +95,9 @@
         </div>
         <div class="comment-section">
             <div id="c-list"></div>
-            <!-- ✅ 댓글에 비밀번호 추가 -->
             <div class="c-form">
-                <input id="ci-a" placeholder="닉네임" style="width:110px;">
-                <input id="ci-pw" type="password" placeholder="비밀번호" style="width:110px;">
+                <input id="ci-a" placeholder="닉네임" style="width:100px;">
+                <input id="ci-pw" type="password" placeholder="비밀번호" style="width:100px;">
                 <input id="ci-c" placeholder="댓글 내용" style="flex:1;">
                 <button onclick="addComment()" style="padding:0 20px; cursor:pointer;">등록</button>
             </div>
@@ -91,6 +110,7 @@
 <script>
     const socket = io();
     const path = window.location.pathname;
+    let currentTab = 'all';
 
     window.onload = () => {
         if (path.startsWith('/post/')) {
@@ -100,19 +120,55 @@
         }
     };
 
+    function switchTab(tab) {
+        currentTab = tab;
+        document.getElementById('tab-all').classList.toggle('active', tab === 'all');
+        document.getElementById('tab-hot').classList.toggle('active', tab === 'hot');
+        if (tab === 'all') loadList();
+        else loadHot();
+    }
+
     async function loadList() {
         document.getElementById('list-view').style.display = 'block';
         document.getElementById('post-view').style.display = 'none';
+        document.getElementById('empty-msg').style.display = 'none';
         const res = await fetch('/api/posts');
         const posts = await res.json();
-        document.getElementById('post-list').innerHTML = posts.map(p => `
-            <tr>
-                <td class="col-title" onclick="location.href='/post/${p.id}'">${p.title}</td>
-                <td class="col-auth">${p.author}</td>
-                <td class="col-vote">${p.likes}</td>
-                <td class="col-date">${p.created_at.slice(5,10)}</td>
-            </tr>
-        `).join('');
+        renderPosts(posts);
+    }
+
+    async function loadHot() {
+        document.getElementById('list-view').style.display = 'block';
+        document.getElementById('post-view').style.display = 'none';
+        const res = await fetch('/api/posts/hot');
+        const data = await res.json();
+        if (data.posts.length === 0) {
+            document.getElementById('post-list').innerHTML = '';
+            document.getElementById('empty-msg').style.display = 'block';
+        } else {
+            document.getElementById('empty-msg').style.display = 'none';
+            renderPosts(data.posts);
+        }
+    }
+
+    function renderPosts(posts) {
+        document.getElementById('post-list').innerHTML = posts.map(p => {
+            const score = p.likes - p.dislikes;
+            const scoreClass = score > 0 ? 'vote-pos' : score < 0 ? 'vote-neg' : 'vote-zero';
+            const scoreStr = score > 0 ? `+${score}` : `${score}`;
+            return `
+                <tr>
+                    <td class="col-title" onclick="location.href='/post/${p.id}'">
+                        ${p.title}
+                        ${p.comment_count > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}
+                    </td>
+                    <td class="col-auth">${p.author}</td>
+                    <td class="col-vote"><span class="${scoreClass}">${scoreStr}</span></td>
+                    <td class="col-view">${p.views}</td>
+                    <td class="col-date">${p.created_at.slice(5,10)}</td>
+                </tr>
+            `;
+        }).join('');
     }
 
     async function showDetail(id) {
@@ -120,14 +176,16 @@
         document.getElementById('post-view').style.display = 'block';
         const res = await fetch(`/api/get-post/${id}`);
         const p = await res.json();
-        document.getElementById('v-title').innerText = p.title;
-        document.getElementById('v-info').innerText = `작성자: ${p.author} | ${p.created_at.slice(0,10)}`;
 
-        // ✅ GIF/이미지 링크 자동 렌더링
+        document.getElementById('v-title').innerText = p.title;
+        document.getElementById('v-info').innerText = `작성자: ${p.author} | 조회 ${p.views} | ${p.created_at.slice(0,10)}`;
+
         const contentEl = document.getElementById('v-content');
         const text = p.content.trim();
-        if (text.match(/\.(gif|jpg|jpeg|png|webp)$/i) || text.startsWith('http')) {
-            contentEl.innerHTML = `<img src="${text}" onerror="this.outerHTML='<p style=white-space:pre-wrap>${text}</p>'">`;
+        if (text.match(/\.(gif|jpg|jpeg|png|webp)$/i)) {
+            contentEl.innerHTML = `<img src="${text}">`;
+        } else if (text.startsWith('http')) {
+            contentEl.innerHTML = `<a href="${text}" target="_blank">${text}</a>`;
         } else {
             contentEl.style.whiteSpace = 'pre-wrap';
             contentEl.innerText = text;
@@ -193,7 +251,7 @@
         loadComments(postId);
     }
 
-    socket.on('update', loadList);
+    socket.on('update', () => { if (currentTab === 'all') loadList(); else loadHot(); });
     socket.on('update-comments', () => {
         if (path.startsWith('/post/')) loadComments(path.split('/')[2]);
     });
