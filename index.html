@@ -35,24 +35,20 @@
         .btn-up:hover { background: #fff5f2; }
         .btn-down { color: #1e90ff; border-color: #1e90ff; }
         .btn-down:hover { background: #f2f8ff; }
-
-        /* 댓글 섹션 */
+        .btn-delete-vote { color: #aaa; border-color: #aaa; }
+        .btn-delete-vote:hover { background: #f5f5f5; }
+        .delete-vote-info { font-size: 12px; color: #aaa; margin-top: 8px; }
         .comment-section { background: #f9f9f9; padding: 20px; border-radius: 5px; margin-top: 30px; }
         .c-item { border-bottom: 1px solid #eee; padding: 10px 5px; font-size: 13px; word-break: break-word; overflow-wrap: break-word; }
         .c-auth { font-weight: bold; color: #294870; margin-right: 10px; white-space: nowrap; }
         .c-reply-btn { font-size: 12px; color: #888; background: none; border: none; cursor: pointer; padding: 2px 6px; margin-left: 6px; }
         .c-reply-btn:hover { color: #294870; }
-
-        /* 대댓글 */
-        .replies { margin-left: 30px; border-left: 2px solid #e0e0e0; padding-left: 12px; margin-top: 6px; }
+        .replies { margin-left: 30px; padding-left: 12px; margin-top: 6px; }
         .reply-item { padding: 8px 5px; font-size: 13px; border-bottom: 1px solid #f0f0f0; word-break: break-word; overflow-wrap: break-word; }
         .reply-item:last-child { border-bottom: none; }
-
-        /* 대댓글 입력폼 */
         .reply-form { display: none; background: #f0f0f0; border-radius: 5px; padding: 10px; margin-top: 8px; }
         .reply-form input { padding: 7px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
         .reply-form-row { display: flex; gap: 6px; flex-wrap: wrap; }
-
         .c-form { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
         .c-form input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
         .write-form { margin-top: 50px; padding: 25px; border-top: 2px solid #294870; background: #fafafa; }
@@ -104,7 +100,10 @@
         <div class="vote-box">
             <button class="vote-btn btn-up" onclick="vote('up')">추천 <span id="v-up">0</span></button>
             <button class="vote-btn btn-down" onclick="vote('down')">비추천 <span id="v-down">0</span></button>
+            <button class="vote-btn btn-delete-vote" onclick="deleteVote()">🗑️ 삭제 투표</button>
         </div>
+        <div id="delete-vote-info" class="delete-vote-info"></div>
+
         <div class="comment-section">
             <div id="c-list"></div>
             <div class="c-form">
@@ -123,12 +122,10 @@
     const socket = io();
     const path = window.location.pathname;
     let currentTab = 'all';
-    let currentPostId = null;
 
     window.onload = () => {
         if (path.startsWith('/post/')) {
-            currentPostId = path.split('/')[2];
-            showDetail(currentPostId);
+            showDetail(path.split('/')[2]);
         } else {
             loadList();
         }
@@ -207,6 +204,12 @@
 
         document.getElementById('v-up').innerText = p.likes;
         document.getElementById('v-down').innerText = p.dislikes;
+
+        // 삭제 투표 현황 표시
+        const threshold = Math.floor(p.views * (1 / (p.views + 7) + 1 / 2)) + 1;
+        document.getElementById('delete-vote-info').innerText =
+            `삭제 투표: ${p.delete_votes || 0} / ${threshold}표`;
+
         loadComments(id);
     }
 
@@ -222,6 +225,24 @@
         document.getElementById('v-up').innerText = updated.likes;
         document.getElementById('v-down').innerText = updated.dislikes;
         localStorage.setItem('voted_' + id, 'true');
+    }
+
+    async function deleteVote() {
+        const id = path.split('/')[2];
+        if (localStorage.getItem('delvoted_' + id)) return alert("이미 삭제 투표하셨습니다.");
+        if (!confirm("이 글의 삭제에 투표하시겠습니까?")) return;
+        const res = await fetch(`/api/posts/${id}/delete-vote`, { method: 'POST' });
+        const data = await res.json();
+        if (data.deleted) {
+            alert("투표 누적으로 글이 삭제되었습니다.");
+            location.href = '/';
+        } else {
+            localStorage.setItem('delvoted_' + id, 'true');
+            const threshold = Math.floor(data.delete_votes / 1);
+            document.getElementById('delete-vote-info').innerText =
+                `삭제 투표: ${data.delete_votes} / ${data.threshold}표`;
+            alert(`삭제 투표가 반영되었습니다. (${data.delete_votes}/${data.threshold}표)`);
+        }
     }
 
     async function submitPost() {
@@ -254,14 +275,16 @@
     async function loadComments(postId) {
         const res = await fetch(`/api/comments/${postId}`);
         const comments = await res.json();
-
         document.getElementById('c-list').innerHTML = comments.map(c => `
             <div class="c-item" id="c-${c.id}">
                 <span class="c-auth">${c.author}</span>
                 ${renderContent(c.content)}
-                <button class="c-reply-btn" onclick="toggleReplyForm(${c.id})">↩ 답글</button>
+                <button class="c-reply-btn" onclick="toggleReplyForm(${c.id})">답글</button>
+                ${c.replies.length > 0 ? `
+                <button class="c-reply-btn" style="margin-left:12px;" onclick="toggleReplies(${c.id})">
+                    댓글 ${c.replies.length}개 보기
+                </button>` : ''}
 
-                <!-- 대댓글 입력폼 -->
                 <div class="reply-form" id="reply-form-${c.id}">
                     <div class="reply-form-row">
                         <input id="ri-a-${c.id}" placeholder="닉네임" style="width:90px;">
@@ -271,12 +294,11 @@
                     </div>
                 </div>
 
-                <!-- 대댓글 목록 -->
                 ${c.replies.length > 0 ? `
-                <div class="replies">
+                <div class="replies" id="replies-${c.id}" style="display:none;">
                     ${c.replies.map(r => `
                         <div class="reply-item">
-                            <span class="c-auth"> ${r.author}</span>
+                            <span class="c-auth">${r.author}</span>
                             ${renderContent(r.content)}
                         </div>
                     `).join('')}
@@ -287,9 +309,23 @@
 
     function toggleReplyForm(commentId) {
         const form = document.getElementById(`reply-form-${commentId}`);
-        form.style.display = form.style.display === 'none' || form.style.display === '' ? 'block' : 'none';
+        form.style.display = form.style.display === 'block' ? 'none' : 'block';
         if (form.style.display === 'block') {
             document.getElementById(`ri-c-${commentId}`).focus();
+        }
+    }
+
+    function toggleReplies(commentId) {
+        const box = document.getElementById(`replies-${commentId}`);
+        const btns = document.querySelectorAll(`#c-${commentId} .c-reply-btn`);
+        const toggleBtn = btns[1];
+        if (box.style.display === 'none') {
+            box.style.display = 'block';
+            toggleBtn.textContent = '댓글 숨기기';
+        } else {
+            box.style.display = 'none';
+            const count = box.querySelectorAll('.reply-item').length;
+            toggleBtn.textContent = `댓글 ${count}개 보기`;
         }
     }
 
