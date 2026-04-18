@@ -35,10 +35,24 @@
         .btn-up:hover { background: #fff5f2; }
         .btn-down { color: #1e90ff; border-color: #1e90ff; }
         .btn-down:hover { background: #f2f8ff; }
+
+        /* 댓글 섹션 */
         .comment-section { background: #f9f9f9; padding: 20px; border-radius: 5px; margin-top: 30px; }
-        /* ✅ 댓글 줄바꿈 fix */
-        .c-item { border-bottom: 1px solid #eee; padding: 10px 5px; font-size: 13px; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; }
+        .c-item { border-bottom: 1px solid #eee; padding: 10px 5px; font-size: 13px; word-break: break-word; overflow-wrap: break-word; }
         .c-auth { font-weight: bold; color: #294870; margin-right: 10px; white-space: nowrap; }
+        .c-reply-btn { font-size: 12px; color: #888; background: none; border: none; cursor: pointer; padding: 2px 6px; margin-left: 6px; }
+        .c-reply-btn:hover { color: #294870; }
+
+        /* 대댓글 */
+        .replies { margin-left: 30px; border-left: 2px solid #e0e0e0; padding-left: 12px; margin-top: 6px; }
+        .reply-item { padding: 8px 5px; font-size: 13px; border-bottom: 1px solid #f0f0f0; word-break: break-word; overflow-wrap: break-word; }
+        .reply-item:last-child { border-bottom: none; }
+
+        /* 대댓글 입력폼 */
+        .reply-form { display: none; background: #f0f0f0; border-radius: 5px; padding: 10px; margin-top: 8px; }
+        .reply-form input { padding: 7px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
+        .reply-form-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
         .c-form { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
         .c-form input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
         .write-form { margin-top: 50px; padding: 25px; border-top: 2px solid #294870; background: #fafafa; }
@@ -56,7 +70,6 @@
             <button class="tab active" id="tab-all" onclick="switchTab('all')">전체글</button>
             <button class="tab" id="tab-hot" onclick="switchTab('hot')">🔥 인기글</button>
         </div>
-
         <table class="list-table">
             <thead>
                 <tr>
@@ -110,10 +123,12 @@
     const socket = io();
     const path = window.location.pathname;
     let currentTab = 'all';
+    let currentPostId = null;
 
     window.onload = () => {
         if (path.startsWith('/post/')) {
-            showDetail(path.split('/')[2]);
+            currentPostId = path.split('/')[2];
+            showDetail(currentPostId);
         } else {
             loadList();
         }
@@ -225,21 +240,57 @@
         location.href = '/';
     }
 
+    function renderContent(text) {
+        text = text.trim();
+        if (text.match(/\.(gif|jpg|jpeg|png|webp)$/i)) {
+            return `<img src="${text}" style="max-width:200px; max-height:200px; border-radius:4px; display:block; margin-top:4px;">`;
+        } else if (text.startsWith('http')) {
+            return `<a href="${text}" target="_blank" style="color:#294870; word-break:break-all;">${text}</a>`;
+        } else {
+            return `<span style="white-space:pre-wrap; word-break:break-word;">${text}</span>`;
+        }
+    }
+
     async function loadComments(postId) {
         const res = await fetch(`/api/comments/${postId}`);
-        const data = await res.json();
-        document.getElementById('c-list').innerHTML = data.map(c => {
-            const text = c.content.trim();
-            let rendered;
-            if (text.match(/\.(gif|jpg|jpeg|png|webp)$/i)) {
-                rendered = `<img src="${text}" style="max-width:200px; max-height:200px; border-radius:4px; display:block; margin-top:4px;">`;
-            } else if (text.startsWith('http')) {
-                rendered = `<a href="${text}" target="_blank" style="color:#294870; word-break:break-all;">${text}</a>`;
-            } else {
-                rendered = `<span style="white-space:pre-wrap; word-break:break-word;">${text}</span>`;
-            }
-            return `<div class="c-item"><span class="c-auth">${c.author}</span>${rendered}</div>`;
-        }).join('');
+        const comments = await res.json();
+
+        document.getElementById('c-list').innerHTML = comments.map(c => `
+            <div class="c-item" id="c-${c.id}">
+                <span class="c-auth">${c.author}</span>
+                ${renderContent(c.content)}
+                <button class="c-reply-btn" onclick="toggleReplyForm(${c.id})">↩ 답글</button>
+
+                <!-- 대댓글 입력폼 -->
+                <div class="reply-form" id="reply-form-${c.id}">
+                    <div class="reply-form-row">
+                        <input id="ri-a-${c.id}" placeholder="닉네임" style="width:90px;">
+                        <input id="ri-pw-${c.id}" type="password" placeholder="비밀번호" style="width:90px;">
+                        <input id="ri-c-${c.id}" placeholder="답글 내용" style="flex:1; min-width:120px;">
+                        <button onclick="addReply(${c.id})" style="padding:7px 14px; cursor:pointer; border-radius:4px; border:1px solid #ddd;">등록</button>
+                    </div>
+                </div>
+
+                <!-- 대댓글 목록 -->
+                ${c.replies.length > 0 ? `
+                <div class="replies">
+                    ${c.replies.map(r => `
+                        <div class="reply-item">
+                            <span class="c-auth">↩ ${r.author}</span>
+                            ${renderContent(r.content)}
+                        </div>
+                    `).join('')}
+                </div>` : ''}
+            </div>
+        `).join('');
+    }
+
+    function toggleReplyForm(commentId) {
+        const form = document.getElementById(`reply-form-${commentId}`);
+        form.style.display = form.style.display === 'none' || form.style.display === '' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById(`ri-c-${commentId}`).focus();
+        }
     }
 
     async function addComment() {
@@ -256,6 +307,24 @@
         });
         if (res.status === 403) return alert("이미 사용 중인 닉네임입니다. 비밀번호를 확인해주세요.");
         document.getElementById('ci-c').value = '';
+        loadComments(postId);
+    }
+
+    async function addReply(parentId) {
+        const postId = path.split('/')[2];
+        const author = document.getElementById(`ri-a-${parentId}`).value;
+        const password = document.getElementById(`ri-pw-${parentId}`).value;
+        const content = document.getElementById(`ri-c-${parentId}`).value;
+        if (!author || !password) return alert("닉네임과 비밀번호를 입력해주세요.");
+        if (!content) return alert("답글 내용을 입력해주세요.");
+        const res = await fetch('/api/comments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ post_id: postId, author, password, content, parent_id: parentId })
+        });
+        if (res.status === 403) return alert("이미 사용 중인 닉네임입니다. 비밀번호를 확인해주세요.");
+        document.getElementById(`ri-c-${parentId}`).value = '';
+        document.getElementById(`reply-form-${parentId}`).style.display = 'none';
         loadComments(postId);
     }
 
