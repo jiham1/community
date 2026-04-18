@@ -29,6 +29,12 @@ async function checkNickname(author, password) {
   return true;
 }
 
+// 삭제 기준 공식
+function deleteThreshold(views) {
+  return Math.floor(views * (1 / (views + 7) + 1 / 2)) + 1;
+}
+
+// 1. 게시글 목록
 app.get('/api/posts', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -44,6 +50,7 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
+// 2. 인기글
 app.get('/api/posts/hot', async (req, res) => {
   try {
     const thresholdResult = await pool.query(`
@@ -66,6 +73,7 @@ app.get('/api/posts/hot', async (req, res) => {
   }
 });
 
+// 3. 게시글 상세 (조회수 +1)
 app.get('/api/get-post/:id', async (req, res) => {
   try {
     await pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [req.params.id]);
@@ -76,6 +84,7 @@ app.get('/api/get-post/:id', async (req, res) => {
   }
 });
 
+// 4. 게시글 작성
 app.post('/api/posts', async (req, res) => {
   const { title, content, author, password } = req.body;
   try {
@@ -92,6 +101,7 @@ app.post('/api/posts', async (req, res) => {
   }
 });
 
+// 5. 추천/비추천
 app.post('/api/vote/:id', async (req, res) => {
   const { type } = req.body;
   const col = type === 'up' ? 'likes' : 'dislikes';
@@ -106,7 +116,27 @@ app.post('/api/vote/:id', async (req, res) => {
   }
 });
 
-// ✅ 댓글 목록 (대댓글 포함, 트리 구조로 반환)
+// 6. 삭제 투표
+app.post('/api/posts/:id/delete-vote', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'UPDATE posts SET delete_votes = delete_votes + 1 WHERE id = $1 RETURNING delete_votes, views',
+      [req.params.id]
+    );
+    const { delete_votes, views } = result.rows[0];
+    const threshold = deleteThreshold(views);
+    if (delete_votes >= threshold) {
+      await pool.query('DELETE FROM posts WHERE id = $1', [req.params.id]);
+      io.emit('update');
+      return res.json({ deleted: true });
+    }
+    res.json({ deleted: false, delete_votes, threshold });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// 7. 댓글 목록 (대댓글 트리)
 app.get('/api/comments/:postId', async (req, res) => {
   try {
     const result = await pool.query(
@@ -114,7 +144,6 @@ app.get('/api/comments/:postId', async (req, res) => {
       [req.params.postId]
     );
     const all = result.rows;
-    // 트리 구조로 변환
     const map = {};
     const roots = [];
     all.forEach(c => { map[c.id] = { ...c, replies: [] }; });
@@ -131,7 +160,7 @@ app.get('/api/comments/:postId', async (req, res) => {
   }
 });
 
-// ✅ 댓글/대댓글 작성 (parent_id 있으면 대댓글)
+// 8. 댓글/대댓글 작성
 app.post('/api/comments', async (req, res) => {
   const { post_id, author, password, content, parent_id } = req.body;
   try {
