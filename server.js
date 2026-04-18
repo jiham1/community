@@ -29,21 +29,23 @@ async function checkNickname(author, password) {
   return true;
 }
 
-// 삭제 기준 공식
 function deleteThreshold(views) {
   return Math.floor(views * (1 / (views + 7) + 1 / 2)) + 1;
 }
 
-// 1. 게시글 목록
+// 1. 게시글 목록 (검색 포함, 삭제글 제외)
 app.get('/api/posts', async (req, res) => {
+  const { search = '' } = req.query;
   try {
     const result = await pool.query(`
       SELECT posts.*, COUNT(comments.id) AS comment_count
       FROM posts
       LEFT JOIN comments ON comments.post_id = posts.id
+      WHERE posts.is_deleted = FALSE
+      ${search ? `AND posts.title ILIKE '%' || $1 || '%'` : ''}
       GROUP BY posts.id
       ORDER BY posts.id DESC
-    `);
+    `, search ? [search] : []);
     res.json(result.rows);
   } catch (err) {
     res.status(500).send(err.message);
@@ -55,7 +57,7 @@ app.get('/api/posts/hot', async (req, res) => {
   try {
     const thresholdResult = await pool.query(`
       SELECT PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY (likes - dislikes)) AS threshold
-      FROM posts
+      FROM posts WHERE is_deleted = FALSE
     `);
     const dynamicThreshold = thresholdResult.rows[0].threshold || 5;
     const threshold = Math.max(5, dynamicThreshold);
@@ -63,7 +65,7 @@ app.get('/api/posts/hot', async (req, res) => {
       SELECT posts.*, COUNT(comments.id) AS comment_count
       FROM posts
       LEFT JOIN comments ON comments.post_id = posts.id
-      WHERE (posts.likes - posts.dislikes) >= $1
+      WHERE posts.is_deleted = FALSE AND (posts.likes - posts.dislikes) >= $1
       GROUP BY posts.id
       ORDER BY (posts.likes - posts.dislikes) DESC
     `, [threshold]);
@@ -73,7 +75,24 @@ app.get('/api/posts/hot', async (req, res) => {
   }
 });
 
-// 3. 게시글 상세 (조회수 +1)
+// 3. 삭제글 목록
+app.get('/api/posts/deleted', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT posts.*, COUNT(comments.id) AS comment_count
+      FROM posts
+      LEFT JOIN comments ON comments.post_id = posts.id
+      WHERE posts.is_deleted = TRUE
+      GROUP BY posts.id
+      ORDER BY posts.deleted_at DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// 4. 게시글 상세 (조회수 +1)
 app.get('/api/get-post/:id', async (req, res) => {
   try {
     await pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [req.params.id]);
@@ -84,7 +103,7 @@ app.get('/api/get-post/:id', async (req, res) => {
   }
 });
 
-// 4. 게시글 작성
+// 5. 게시글 작성
 app.post('/api/posts', async (req, res) => {
   const { title, content, author, password } = req.body;
   try {
@@ -101,7 +120,7 @@ app.post('/api/posts', async (req, res) => {
   }
 });
 
-// 5. 추천/비추천
+// 6. 추천/비추천
 app.post('/api/vote/:id', async (req, res) => {
   const { type } = req.body;
   const col = type === 'up' ? 'likes' : 'dislikes';
@@ -116,7 +135,7 @@ app.post('/api/vote/:id', async (req, res) => {
   }
 });
 
-// 6. 삭제 투표
+// 7. 삭제 투표
 app.post('/api/posts/:id/delete-vote', async (req, res) => {
   try {
     const result = await pool.query(
@@ -125,18 +144,37 @@ app.post('/api/posts/:id/delete-vote', async (req, res) => {
     );
     const { delete_votes, views } = result.rows[0];
     const threshold = deleteThreshold(views);
+
     if (delete_votes >= threshold) {
-      await pool.query('DELETE FROM posts WHERE id = $1', [req.params.id]);
+      // 삭제글로 이동
+      await pool.query(
+        'UPDATE posts SET is_deleted = TRUE, deleted_at = NOW() WHERE id = $1',
+        [req.params.id]
+      );
+
+      // 삭제글 10개 초과시 가장 오래된 거 영구삭제
+      const deletedCount = await pool.query(
+        'SELECT COUNT(*) FROM posts WHERE is_deleted = TRUE'
+      );
+      if (parseInt(deletedCount.rows[0].count) > 10) {
+        await pool.query(`
+          DELETE FROM posts WHERE id = (
+            SELECT id FROM posts WHERE is_deleted = TRUE ORDER BY deleted_at ASC LIMIT 1
+          )
+        `);
+      }
+
       io.emit('update');
-      return res.json({ deleted: true });
+      return res.json({ moved: true });
     }
-    res.json({ deleted: false, delete_votes, threshold });
+
+    res.json({ moved: false, delete_votes, threshold });
   } catch (err) {
     res.status(500).send(err.message);
   }
 });
 
-// 7. 댓글 목록 (대댓글 트리)
+// 8. 댓글 목록 (대댓글 트리)
 app.get('/api/comments/:postId', async (req, res) => {
   try {
     const result = await pool.query(
@@ -160,7 +198,7 @@ app.get('/api/comments/:postId', async (req, res) => {
   }
 });
 
-// 8. 댓글/대댓글 작성
+// 9. 댓글/대댓글 작성
 app.post('/api/comments', async (req, res) => {
   const { post_id, author, password, content, parent_id } = req.body;
   try {
@@ -176,6 +214,19 @@ app.post('/api/comments', async (req, res) => {
     res.status(500).send(err.message);
   }
 });
+
+// 매시간 4일 지난 삭제글 영구삭제
+setInterval(async () => {
+  try {
+    await pool.query(`
+      DELETE FROM posts
+      WHERE is_deleted = TRUE
+      AND deleted_at < NOW() - INTERVAL '4 days'
+    `);
+  } catch (err) {
+    console.error('자동삭제 오류:', err.message);
+  }
+}, 1000 * 60 * 60);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
