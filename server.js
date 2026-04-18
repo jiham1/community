@@ -29,7 +29,6 @@ async function checkNickname(author, password) {
   return true;
 }
 
-// 1. 게시글 목록 (댓글 수 포함)
 app.get('/api/posts', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -45,17 +44,14 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
-// 2. 인기글 목록 (동적 기준)
 app.get('/api/posts/hot', async (req, res) => {
   try {
-    // 상위 10% 순추천 계산
     const thresholdResult = await pool.query(`
       SELECT PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY (likes - dislikes)) AS threshold
       FROM posts
     `);
     const dynamicThreshold = thresholdResult.rows[0].threshold || 5;
     const threshold = Math.max(5, dynamicThreshold);
-
     const result = await pool.query(`
       SELECT posts.*, COUNT(comments.id) AS comment_count
       FROM posts
@@ -70,7 +66,6 @@ app.get('/api/posts/hot', async (req, res) => {
   }
 });
 
-// 3. 게시글 상세 (조회수 +1)
 app.get('/api/get-post/:id', async (req, res) => {
   try {
     await pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [req.params.id]);
@@ -81,7 +76,6 @@ app.get('/api/get-post/:id', async (req, res) => {
   }
 });
 
-// 4. 게시글 작성
 app.post('/api/posts', async (req, res) => {
   const { title, content, author, password } = req.body;
   try {
@@ -98,7 +92,6 @@ app.post('/api/posts', async (req, res) => {
   }
 });
 
-// 5. 추천/비추천
 app.post('/api/vote/:id', async (req, res) => {
   const { type } = req.body;
   const col = type === 'up' ? 'likes' : 'dislikes';
@@ -113,28 +106,40 @@ app.post('/api/vote/:id', async (req, res) => {
   }
 });
 
-// 6. 댓글 목록
+// ✅ 댓글 목록 (대댓글 포함, 트리 구조로 반환)
 app.get('/api/comments/:postId', async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM comments WHERE post_id = $1 ORDER BY id ASC',
       [req.params.postId]
     );
-    res.json(result.rows);
+    const all = result.rows;
+    // 트리 구조로 변환
+    const map = {};
+    const roots = [];
+    all.forEach(c => { map[c.id] = { ...c, replies: [] }; });
+    all.forEach(c => {
+      if (c.parent_id) {
+        if (map[c.parent_id]) map[c.parent_id].replies.push(map[c.id]);
+      } else {
+        roots.push(map[c.id]);
+      }
+    });
+    res.json(roots);
   } catch (err) {
     res.status(500).send(err.message);
   }
 });
 
-// 7. 댓글 작성
+// ✅ 댓글/대댓글 작성 (parent_id 있으면 대댓글)
 app.post('/api/comments', async (req, res) => {
-  const { post_id, author, password, content } = req.body;
+  const { post_id, author, password, content, parent_id } = req.body;
   try {
     const ok = await checkNickname(author, password);
     if (!ok) return res.status(403).send("비밀번호 불일치");
     await pool.query(
-      'INSERT INTO comments (post_id, author, content, password) VALUES ($1, $2, $3, $4)',
-      [post_id, author || '익명', content, password]
+      'INSERT INTO comments (post_id, author, content, password, parent_id) VALUES ($1, $2, $3, $4, $5)',
+      [post_id, author || '익명', content, password, parent_id || null]
     );
     io.emit('update-comments');
     res.sendStatus(200);
