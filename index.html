@@ -11,7 +11,6 @@
         .tab { padding: 10px 24px; cursor: pointer; font-size: 14px; font-weight: bold; color: #888; border: none; background: none; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: 0.2s; }
         .tab.active { color: #294870; border-bottom: 3px solid #294870; }
         .tab:hover { color: #294870; }
-        .hot-badge { font-size: 11px; background: #ff4500; color: #fff; border-radius: 3px; padding: 1px 5px; margin-left: 5px; }
         .list-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .list-table th { background: #f8f9fa; border-bottom: 1px solid #ddd; padding: 12px; font-size: 13px; color: #666; }
         .list-table td { border-bottom: 1px solid #eee; padding: 12px; font-size: 13px; vertical-align: middle; }
@@ -37,8 +36,9 @@
         .btn-down { color: #1e90ff; border-color: #1e90ff; }
         .btn-down:hover { background: #f2f8ff; }
         .comment-section { background: #f9f9f9; padding: 20px; border-radius: 5px; margin-top: 30px; }
-        .c-item { border-bottom: 1px solid #eee; padding: 10px 5px; font-size: 13px; }
-        .c-auth { font-weight: bold; color: #294870; margin-right: 10px; }
+        /* ✅ 댓글 줄바꿈 fix */
+        .c-item { border-bottom: 1px solid #eee; padding: 10px 5px; font-size: 13px; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; }
+        .c-auth { font-weight: bold; color: #294870; margin-right: 10px; white-space: nowrap; }
         .c-form { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
         .c-form input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
         .write-form { margin-top: 50px; padding: 25px; border-top: 2px solid #294870; background: #fafafa; }
@@ -52,7 +52,6 @@
     <h1 onclick="location.href='/'">개발 갤러리</h1>
 
     <div id="list-view">
-        <!-- 탭 -->
         <div class="tabs">
             <button class="tab active" id="tab-all" onclick="switchTab('all')">전체글</button>
             <button class="tab" id="tab-hot" onclick="switchTab('hot')">🔥 인기글</button>
@@ -63,7 +62,7 @@
                 <tr>
                     <th>제목</th>
                     <th class="col-auth">글쓴이</th>
-                    <th class="col-vote">추천</th>
+                    <th class="col-vote">순추천</th>
                     <th class="col-view">조회</th>
                     <th class="col-date">날짜</th>
                 </tr>
@@ -229,9 +228,18 @@
     async function loadComments(postId) {
         const res = await fetch(`/api/comments/${postId}`);
         const data = await res.json();
-        document.getElementById('c-list').innerHTML = data.map(c => `
-            <div class="c-item"><span class="c-auth">${c.author}</span>${c.content}</div>
-        `).join('');
+        document.getElementById('c-list').innerHTML = data.map(c => {
+            const text = c.content.trim();
+            let rendered;
+            if (text.match(/\.(gif|jpg|jpeg|png|webp)$/i)) {
+                rendered = `<img src="${text}" style="max-width:200px; max-height:200px; border-radius:4px; display:block; margin-top:4px;">`;
+            } else if (text.startsWith('http')) {
+                rendered = `<a href="${text}" target="_blank" style="color:#294870; word-break:break-all;">${text}</a>`;
+            } else {
+                rendered = `<span style="white-space:pre-wrap; word-break:break-word;">${text}</span>`;
+            }
+            return `<div class="c-item"><span class="c-auth">${c.author}</span>${rendered}</div>`;
+        }).join('');
     }
 
     async function addComment() {
