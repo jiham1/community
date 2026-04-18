@@ -7,10 +7,12 @@
         body { font-family: 'Malgun Gothic', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 850px; margin: 0 auto; background: #fff; padding: 30px; border: 1px solid #ccc; min-height: 700px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h1 { color: #294870; cursor: pointer; text-align: center; border-bottom: 2px solid #294870; padding-bottom: 15px; margin-bottom: 20px; }
-        .tabs { display: flex; gap: 0; margin-bottom: 15px; border-bottom: 2px solid #294870; }
-        .tab { padding: 10px 24px; cursor: pointer; font-size: 14px; font-weight: bold; color: #888; border: none; background: none; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: 0.2s; }
+        .tab-row { display: flex; align-items: flex-end; border-bottom: 2px solid #294870; margin-bottom: 15px; }
+        .tab { padding: 10px 20px; cursor: pointer; font-size: 14px; font-weight: bold; color: #888; border: none; background: none; border-bottom: 3px solid transparent; margin-bottom: -2px; }
         .tab.active { color: #294870; border-bottom: 3px solid #294870; }
-        .tab:hover { color: #294870; }
+        .tab-search { display: flex; gap: 6px; margin-left: auto; padding-bottom: 5px; }
+        .tab-search input { width: 200px; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
+        .tab-search button { padding: 6px 12px; background: #294870; color: #fff; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; }
         .list-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .list-table th { background: #f8f9fa; border-bottom: 1px solid #ddd; padding: 12px; font-size: 13px; color: #666; }
         .list-table td { border-bottom: 1px solid #eee; padding: 12px; font-size: 13px; vertical-align: middle; }
@@ -20,6 +22,7 @@
         .col-vote { width: 55px; text-align: center; font-weight: bold; }
         .col-view { width: 55px; text-align: center; color: #888; }
         .col-date { width: 70px; text-align: center; color: #888; }
+        .col-remain { width: 80px; text-align: center; }
         .vote-pos { color: #ff4500; }
         .vote-neg { color: #1e90ff; }
         .vote-zero { color: #aaa; }
@@ -29,32 +32,36 @@
         .v-content { font-size: 16px; line-height: 1.8; padding: 30px 0; min-height: 200px; color: #333; }
         .v-content img { max-width: 100%; border-radius: 5px; }
         .v-content a { color: #294870; word-break: break-all; }
+        .deleted-banner { background: #fff8e1; border: 1px solid #f0c040; border-radius: 5px; padding: 10px 14px; margin-bottom: 20px; font-size: 13px; color: #7a5800; }
+        .deleted-content { opacity: 0.35; pointer-events: none; user-select: none; }
         .vote-box { text-align: center; margin: 40px 0; }
         .vote-btn { padding: 12px 25px; margin: 0 8px; cursor: pointer; border: 1px solid #ddd; background: #fff; border-radius: 5px; font-weight: bold; transition: 0.2s; }
         .btn-up { color: #ff4500; border-color: #ff4500; }
         .btn-up:hover { background: #fff5f2; }
         .btn-down { color: #1e90ff; border-color: #1e90ff; }
         .btn-down:hover { background: #f2f8ff; }
-        .btn-delete-vote { color: #aaa; border-color: #aaa; }
-        .btn-delete-vote:hover { background: #f5f5f5; }
-        .delete-vote-info { font-size: 12px; color: #aaa; margin-top: 8px; }
+        .btn-delvote { color: #aaa; border-color: #aaa; }
+        .btn-delvote:hover { background: #f5f5f5; }
+        .delvote-info { font-size: 12px; color: #aaa; text-align: center; margin-top: 6px; }
         .comment-section { background: #f9f9f9; padding: 20px; border-radius: 5px; margin-top: 30px; }
         .c-item { border-bottom: 1px solid #eee; padding: 10px 5px; font-size: 13px; word-break: break-word; overflow-wrap: break-word; }
         .c-auth { font-weight: bold; color: #294870; margin-right: 10px; white-space: nowrap; }
-        .c-reply-btn { font-size: 12px; color: #888; background: none; border: none; cursor: pointer; padding: 2px 6px; margin-left: 6px; }
+        .c-reply-btn { font-size: 12px; color: #888; background: none; border: none; cursor: pointer; padding: 2px 6px; margin-left: 4px; }
         .c-reply-btn:hover { color: #294870; }
         .replies { margin-left: 30px; padding-left: 12px; margin-top: 6px; }
-        .reply-item { padding: 8px 5px; font-size: 13px; border-bottom: 1px solid #f0f0f0; word-break: break-word; overflow-wrap: break-word; }
+        .reply-item { padding: 8px 5px; font-size: 13px; border-bottom: 1px solid #f0f0f0; word-break: break-word; }
         .reply-item:last-child { border-bottom: none; }
         .reply-form { display: none; background: #f0f0f0; border-radius: 5px; padding: 10px; margin-top: 8px; }
-        .reply-form input { padding: 7px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
         .reply-form-row { display: flex; gap: 6px; flex-wrap: wrap; }
+        .reply-form input { padding: 7px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
         .c-form { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
         .c-form input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
         .write-form { margin-top: 50px; padding: 25px; border-top: 2px solid #294870; background: #fafafa; }
         .write-form input, .write-form textarea { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn-submit { background: #294870; color: #fff; border: none; padding: 15px; width: 100%; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 4px; }
         .empty-msg { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+        .del-notice { background: #f5f5f5; border-left: 3px solid #bbb; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: #888; border-radius: 0; }
+        .del-badge { font-size: 11px; background: #e0e0e0; color: #555; border-radius: 10px; padding: 1px 6px; margin-left: 5px; }
     </style>
 </head>
 <body>
@@ -62,12 +69,18 @@
     <h1 onclick="location.href='/'">개발 갤러리</h1>
 
     <div id="list-view">
-        <div class="tabs">
+        <div class="tab-row">
             <button class="tab active" id="tab-all" onclick="switchTab('all')">전체글</button>
             <button class="tab" id="tab-hot" onclick="switchTab('hot')">🔥 인기글</button>
+            <button class="tab" id="tab-del" onclick="switchTab('del')">삭제글 <span class="del-badge" id="del-count">0/10</span></button>
+            <div class="tab-search" id="search-box">
+                <input id="search-input" placeholder="제목 검색..." onkeydown="if(event.key==='Enter') doSearch()">
+                <button onclick="doSearch()">검색</button>
+            </div>
         </div>
-        <table class="list-table">
-            <thead>
+
+        <table class="list-table" id="main-table">
+            <thead id="main-thead">
                 <tr>
                     <th>제목</th>
                     <th class="col-auth">글쓴이</th>
@@ -78,9 +91,9 @@
             </thead>
             <tbody id="post-list"></tbody>
         </table>
-        <div id="empty-msg" class="empty-msg" style="display:none;">아직 인기글이 없어요 🥲</div>
+        <div id="empty-msg" class="empty-msg" style="display:none;"></div>
 
-        <div class="write-form">
+        <div class="write-form" id="write-form">
             <div style="display:flex; gap:10px;">
                 <input id="w-auth" placeholder="닉네임" style="width:50%">
                 <input id="w-pw" type="password" placeholder="비밀번호" style="width:50%">
@@ -92,17 +105,20 @@
     </div>
 
     <div id="post-view">
+        <div id="deleted-banner" class="deleted-banner" style="display:none;"></div>
         <div class="v-header">
             <div id="v-title" class="v-title"></div>
             <div id="v-info" style="color:#888; font-size:12px;"></div>
         </div>
-        <div id="v-content" class="v-content"></div>
+        <div id="v-content-wrap">
+            <div id="v-content" class="v-content"></div>
+        </div>
         <div class="vote-box">
             <button class="vote-btn btn-up" onclick="vote('up')">추천 <span id="v-up">0</span></button>
             <button class="vote-btn btn-down" onclick="vote('down')">비추천 <span id="v-down">0</span></button>
-            <button class="vote-btn btn-delete-vote" onclick="deleteVote()">🗑️ 삭제 투표</button>
+            <button class="vote-btn btn-delvote" id="delvote-btn" onclick="deleteVote()">삭제 투표</button>
         </div>
-        <div id="delete-vote-info" class="delete-vote-info"></div>
+        <div id="delvote-info" class="delvote-info"></div>
 
         <div class="comment-section">
             <div id="c-list"></div>
@@ -122,12 +138,14 @@
     const socket = io();
     const path = window.location.pathname;
     let currentTab = 'all';
+    let currentSearch = '';
 
     window.onload = () => {
         if (path.startsWith('/post/')) {
             showDetail(path.split('/')[2]);
         } else {
             loadList();
+            updateDelCount();
         }
     };
 
@@ -135,31 +153,115 @@
         currentTab = tab;
         document.getElementById('tab-all').classList.toggle('active', tab === 'all');
         document.getElementById('tab-hot').classList.toggle('active', tab === 'hot');
-        if (tab === 'all') loadList();
-        else loadHot();
+        document.getElementById('tab-del').classList.toggle('active', tab === 'del');
+        document.getElementById('search-box').style.display = tab === 'del' ? 'none' : 'flex';
+        document.getElementById('write-form').style.display = tab === 'del' ? 'none' : 'block';
+
+        if (tab === 'del') {
+            loadDeleted();
+        } else if (tab === 'hot') {
+            loadHot();
+        } else {
+            currentSearch = '';
+            document.getElementById('search-input').value = '';
+            loadList();
+        }
+    }
+
+    function doSearch() {
+        currentSearch = document.getElementById('search-input').value;
+        loadList();
+    }
+
+    async function updateDelCount() {
+        const res = await fetch('/api/posts/deleted');
+        const posts = await res.json();
+        document.getElementById('del-count').innerText = `${posts.length}/10`;
     }
 
     async function loadList() {
         document.getElementById('list-view').style.display = 'block';
         document.getElementById('post-view').style.display = 'none';
         document.getElementById('empty-msg').style.display = 'none';
-        const res = await fetch('/api/posts');
+
+        document.getElementById('main-thead').innerHTML = `<tr>
+            <th>제목</th>
+            <th class="col-auth">글쓴이</th>
+            <th class="col-vote">순추천</th>
+            <th class="col-view">조회</th>
+            <th class="col-date">날짜</th>
+        </tr>`;
+
+        const res = await fetch(`/api/posts?search=${encodeURIComponent(currentSearch)}`);
         const posts = await res.json();
         renderPosts(posts);
     }
 
     async function loadHot() {
-        document.getElementById('list-view').style.display = 'block';
-        document.getElementById('post-view').style.display = 'none';
+        document.getElementById('empty-msg').style.display = 'none';
+        document.getElementById('main-thead').innerHTML = `<tr>
+            <th>제목</th>
+            <th class="col-auth">글쓴이</th>
+            <th class="col-vote">순추천</th>
+            <th class="col-view">조회</th>
+            <th class="col-date">날짜</th>
+        </tr>`;
         const res = await fetch('/api/posts/hot');
         const data = await res.json();
         if (data.posts.length === 0) {
             document.getElementById('post-list').innerHTML = '';
             document.getElementById('empty-msg').style.display = 'block';
+            document.getElementById('empty-msg').innerText = '아직 인기글이 없어요 🥲';
         } else {
-            document.getElementById('empty-msg').style.display = 'none';
             renderPosts(data.posts);
         }
+    }
+
+    async function loadDeleted() {
+        document.getElementById('empty-msg').style.display = 'none';
+        document.getElementById('main-thead').innerHTML = `<tr>
+            <th>제목</th>
+            <th class="col-auth">글쓴이</th>
+            <th class="col-remain">삭제까지</th>
+            <th class="col-date">날짜</th>
+        </tr>`;
+        const res = await fetch('/api/posts/deleted');
+        const posts = await res.json();
+        if (posts.length === 0) {
+            document.getElementById('post-list').innerHTML = '';
+            document.getElementById('empty-msg').style.display = 'block';
+            document.getElementById('empty-msg').innerText = '삭제된 글이 없어요';
+        } else {
+            document.getElementById('post-list').innerHTML = posts.map(p => {
+                const deleted = new Date(p.deleted_at);
+                const expire = new Date(deleted.getTime() + 4 * 24 * 60 * 60 * 1000);
+                const now = new Date();
+                const diffMs = expire - now;
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffHours / 24);
+                let remainText, remainColor;
+                if (diffMs <= 0) {
+                    remainText = '곧 삭제';
+                    remainColor = '#c00';
+                } else if (diffDays === 0) {
+                    remainText = '오늘 삭제';
+                    remainColor = '#c00';
+                } else if (diffDays === 1) {
+                    remainText = '1일 남음';
+                    remainColor = '#e07000';
+                } else {
+                    remainText = `${diffDays}일 남음`;
+                    remainColor = '#888';
+                }
+                return `<tr>
+                    <td class="col-title" style="text-decoration:line-through; color:#999; cursor:pointer;" onclick="location.href='/post/${p.id}'">${p.title}</td>
+                    <td class="col-auth" style="color:#bbb;">${p.author}</td>
+                    <td class="col-remain" style="color:${remainColor}; font-size:12px;">${remainText}</td>
+                    <td class="col-date" style="color:#bbb;">${p.created_at.slice(5,10)}</td>
+                </tr>`;
+            }).join('');
+        }
+        updateDelCount();
     }
 
     function renderPosts(posts) {
@@ -167,18 +269,16 @@
             const score = p.likes - p.dislikes;
             const scoreClass = score > 0 ? 'vote-pos' : score < 0 ? 'vote-neg' : 'vote-zero';
             const scoreStr = score > 0 ? `+${score}` : `${score}`;
-            return `
-                <tr>
-                    <td class="col-title" onclick="location.href='/post/${p.id}'">
-                        ${p.title}
-                        ${p.comment_count > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}
-                    </td>
-                    <td class="col-auth">${p.author}</td>
-                    <td class="col-vote"><span class="${scoreClass}">${scoreStr}</span></td>
-                    <td class="col-view">${p.views}</td>
-                    <td class="col-date">${p.created_at.slice(5,10)}</td>
-                </tr>
-            `;
+            return `<tr>
+                <td class="col-title" onclick="location.href='/post/${p.id}'">
+                    ${p.title}
+                    ${p.comment_count > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}
+                </td>
+                <td class="col-auth">${p.author}</td>
+                <td class="col-vote"><span class="${scoreClass}">${scoreStr}</span></td>
+                <td class="col-view">${p.views}</td>
+                <td class="col-date">${p.created_at.slice(5,10)}</td>
+            </tr>`;
         }).join('');
     }
 
@@ -190,6 +290,25 @@
 
         document.getElementById('v-title').innerText = p.title;
         document.getElementById('v-info').innerText = `작성자: ${p.author} | 조회 ${p.views} | ${p.created_at.slice(0,10)}`;
+
+        // 삭제글 배너 + 흐림 처리
+        const banner = document.getElementById('deleted-banner');
+        const contentWrap = document.getElementById('v-content-wrap');
+        if (p.is_deleted) {
+            const deleted = new Date(p.deleted_at);
+            const expire = new Date(deleted.getTime() + 4 * 24 * 60 * 60 * 1000);
+            const diffDays = Math.ceil((expire - new Date()) / (1000 * 60 * 60 * 24));
+            banner.style.display = 'block';
+            banner.innerHTML = `⚠️ 삭제 투표로 퇴장한 글입니다. <b>${diffDays > 0 ? diffDays + '일 후' : '곧'}</b> 영구삭제됩니다.`;
+            contentWrap.style.opacity = '0.35';
+            contentWrap.style.pointerEvents = 'none';
+            document.getElementById('delvote-btn').style.display = 'none';
+        } else {
+            banner.style.display = 'none';
+            contentWrap.style.opacity = '1';
+            contentWrap.style.pointerEvents = '';
+            document.getElementById('delvote-btn').style.display = '';
+        }
 
         const contentEl = document.getElementById('v-content');
         const text = p.content.trim();
@@ -205,10 +324,8 @@
         document.getElementById('v-up').innerText = p.likes;
         document.getElementById('v-down').innerText = p.dislikes;
 
-        // 삭제 투표 현황 표시
         const threshold = Math.floor(p.views * (1 / (p.views + 7) + 1 / 2)) + 1;
-        document.getElementById('delete-vote-info').innerText =
-            `삭제 투표: ${p.delete_votes || 0} / ${threshold}표`;
+        document.getElementById('delvote-info').innerText = `삭제 투표: ${p.delete_votes || 0} / ${threshold}표`;
 
         loadComments(id);
     }
@@ -233,32 +350,15 @@
         if (!confirm("이 글의 삭제에 투표하시겠습니까?")) return;
         const res = await fetch(`/api/posts/${id}/delete-vote`, { method: 'POST' });
         const data = await res.json();
-        if (data.deleted) {
-            alert("투표 누적으로 글이 삭제되었습니다.");
+        if (data.moved) {
+            alert("투표 누적으로 글이 삭제글 탭으로 이동되었습니다.");
             location.href = '/';
         } else {
             localStorage.setItem('delvoted_' + id, 'true');
-            const threshold = Math.floor(data.delete_votes / 1);
-            document.getElementById('delete-vote-info').innerText =
+            document.getElementById('delvote-info').innerText =
                 `삭제 투표: ${data.delete_votes} / ${data.threshold}표`;
             alert(`삭제 투표가 반영되었습니다. (${data.delete_votes}/${data.threshold}표)`);
         }
-    }
-
-    async function submitPost() {
-        const author = document.getElementById('w-auth').value;
-        const password = document.getElementById('w-pw').value;
-        const title = document.getElementById('w-title').value;
-        const content = document.getElementById('w-content').value;
-        if (!author || !password) return alert("닉네임과 비밀번호를 입력해주세요.");
-        if (!title || !content) return alert("제목과 내용을 입력해주세요.");
-        const res = await fetch('/api/posts', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ author, title, content, password })
-        });
-        if (res.status === 403) return alert("이미 사용 중인 닉네임입니다. 비밀번호를 확인해주세요.");
-        location.href = '/';
     }
 
     function renderContent(text) {
@@ -281,10 +381,7 @@
                 ${renderContent(c.content)}
                 <button class="c-reply-btn" onclick="toggleReplyForm(${c.id})">답글</button>
                 ${c.replies.length > 0 ? `
-                <button class="c-reply-btn" style="margin-left:12px;" onclick="toggleReplies(${c.id})">
-                    댓글 ${c.replies.length}개 보기
-                </button>` : ''}
-
+                <button class="c-reply-btn" style="margin-left:12px;" onclick="toggleReplies(${c.id})">댓글 ${c.replies.length}개 보기</button>` : ''}
                 <div class="reply-form" id="reply-form-${c.id}">
                     <div class="reply-form-row">
                         <input id="ri-a-${c.id}" placeholder="닉네임" style="width:90px;">
@@ -293,7 +390,6 @@
                         <button onclick="addReply(${c.id})" style="padding:7px 14px; cursor:pointer; border-radius:4px; border:1px solid #ddd;">등록</button>
                     </div>
                 </div>
-
                 ${c.replies.length > 0 ? `
                 <div class="replies" id="replies-${c.id}" style="display:none;">
                     ${c.replies.map(r => `
@@ -310,9 +406,7 @@
     function toggleReplyForm(commentId) {
         const form = document.getElementById(`reply-form-${commentId}`);
         form.style.display = form.style.display === 'block' ? 'none' : 'block';
-        if (form.style.display === 'block') {
-            document.getElementById(`ri-c-${commentId}`).focus();
-        }
+        if (form.style.display === 'block') document.getElementById(`ri-c-${commentId}`).focus();
     }
 
     function toggleReplies(commentId) {
@@ -327,6 +421,22 @@
             const count = box.querySelectorAll('.reply-item').length;
             toggleBtn.textContent = `댓글 ${count}개 보기`;
         }
+    }
+
+    async function submitPost() {
+        const author = document.getElementById('w-auth').value;
+        const password = document.getElementById('w-pw').value;
+        const title = document.getElementById('w-title').value;
+        const content = document.getElementById('w-content').value;
+        if (!author || !password) return alert("닉네임과 비밀번호를 입력해주세요.");
+        if (!title || !content) return alert("제목과 내용을 입력해주세요.");
+        const res = await fetch('/api/posts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ author, title, content, password })
+        });
+        if (res.status === 403) return alert("이미 사용 중인 닉네임입니다. 비밀번호를 확인해주세요.");
+        location.href = '/';
     }
 
     async function addComment() {
@@ -364,7 +474,12 @@
         loadComments(postId);
     }
 
-    socket.on('update', () => { if (currentTab === 'all') loadList(); else loadHot(); });
+    socket.on('update', () => {
+        if (currentTab === 'all') loadList();
+        else if (currentTab === 'hot') loadHot();
+        else loadDeleted();
+        updateDelCount();
+    });
     socket.on('update-comments', () => {
         if (path.startsWith('/post/')) loadComments(path.split('/')[2]);
     });
