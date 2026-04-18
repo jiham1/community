@@ -276,7 +276,7 @@
                 <div class="replies">
                     ${c.replies.map(r => `
                         <div class="reply-item">
-                            <span class="c-auth">↩ ${r.author}</span>
+                            <span class="c-auth"> ${r.author}</span>
                             ${renderContent(r.content)}
                         </div>
                     `).join('')}
