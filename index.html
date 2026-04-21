@@ -12,8 +12,9 @@
         .tab.active { color: #294870; border-bottom: 3px solid #294870; }
         .tab:hover { color: #294870; }
         .tab-badge { font-size: 11px; background: #e0e0e0; color: #555; border-radius: 10px; padding: 1px 6px; margin-left: 4px; }
-        .search-box { display: flex; gap: 8px; margin: 14px 0 10px; }
-        .search-box input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+        .search-box { display: flex; gap: 8px; margin: 14px 0 10px; align-items: center; }
+        .search-box input { flex: 7; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+        .search-box select { flex: 3; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; color: #444; background: #fff; }
         .search-box button { padding: 8px 18px; background: #294870; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
         .list-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .list-table th { background: #f8f9fa; border-bottom: 1px solid #ddd; padding: 10px; font-size: 13px; color: #666; font-weight: 500; }
@@ -30,6 +31,10 @@
         .vote-zero { color: #aaa; }
         .deleted-title { color: #999; text-decoration: line-through; }
         .deleted-notice { background: #fff8e1; border: 1px solid #f0c040; border-radius: 5px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: #7a5800; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 4px; margin-top: 16px; }
+        .pagination button { padding: 6px 11px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; color: #666; }
+        .pagination button.active { background: #294870; color: #fff; border-color: #294870; font-weight: bold; }
+        .pagination button.arrow { padding: 6px 10px; }
         #post-view { display: none; }
         .v-header { border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
         .v-title { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 10px; }
@@ -63,7 +68,7 @@
         .write-form input, .write-form textarea { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn-submit { background: #294870; color: #fff; border: none; padding: 15px; width: 100%; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 4px; }
         .empty-msg { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
-        .deleted-info-bar { background: #f5f5f5; border-left: 3px solid #ccc; border-radius: 4px; padding: 9px 14px; margin-bottom: 10px; font-size: 12px; color: #888; }
+        .deleted-info-bar { background: #f5f5f5; border-left: 3px solid #ccc; border-radius: 0; padding: 9px 14px; margin-bottom: 10px; font-size: 12px; color: #888; }
         #paste-hint { font-size: 12px; color: #aaa; margin-top: -8px; margin-bottom: 10px; }
         .uploading { font-size: 12px; color: #294870; margin-top: -8px; margin-bottom: 10px; }
     </style>
@@ -81,6 +86,11 @@
 
         <div class="search-box">
             <input id="search-input" placeholder="제목 검색..." onkeydown="if(event.key==='Enter') doSearch()">
+            <select id="sort-select" onchange="doSearch()">
+                <option value="newest">최신순</option>
+                <option value="views">조회순</option>
+                <option value="votes">추천순</option>
+            </select>
             <button onclick="doSearch()">검색</button>
         </div>
 
@@ -88,19 +98,12 @@
             삭제 투표로 퇴장한 글이에요. 10개 초과 또는 4일 경과 시 영구삭제됩니다.
         </div>
 
-        <table class="list-table" id="main-table">
-            <thead id="table-head">
-                <tr>
-                    <th>제목</th>
-                    <th class="col-auth">글쓴이</th>
-                    <th class="col-vote">순추천</th>
-                    <th class="col-view">조회</th>
-                    <th class="col-date">날짜</th>
-                </tr>
-            </thead>
+        <table class="list-table">
+            <thead id="table-head"></thead>
             <tbody id="post-list"></tbody>
         </table>
         <div id="empty-msg" class="empty-msg" style="display:none;"></div>
+        <div class="pagination" id="pagination"></div>
 
         <div class="write-form">
             <div style="display:flex; gap:10px;">
@@ -108,7 +111,7 @@
                 <input id="w-pw" type="password" placeholder="비밀번호" style="width:50%">
             </div>
             <input id="w-title" placeholder="제목을 입력하세요">
-            <textarea id="w-content" rows="6" placeholder="내용 또는 이미지 링크를 입력하세요. 이미지를 복사해서 붙여넣기(Ctrl+V)도 가능해요!"></textarea>
+            <textarea id="w-content" rows="6" placeholder="내용 또는 이미지 링크를 입력하세요. 이미지를 복사해서 Ctrl+V도 가능해요!"></textarea>
             <div id="paste-hint">💡 이미지 복사 후 내용란에 Ctrl+V 하면 자동 업로드돼요</div>
             <div id="upload-status" style="display:none;" class="uploading">업로드 중...</div>
             <button class="btn-submit" onclick="submitPost()">등록하기</button>
@@ -122,7 +125,7 @@
         </div>
         <div id="deleted-notice" class="deleted-notice" style="display:none;"></div>
         <div id="v-content" class="v-content"></div>
-        <div class="vote-box" id="vote-box">
+        <div class="vote-box">
             <button class="vote-btn btn-up" onclick="vote('up')">추천 <span id="v-up">0</span></button>
             <button class="vote-btn btn-down" onclick="vote('down')">비추천 <span id="v-down">0</span></button>
             <button class="vote-btn btn-delete-vote" id="del-vote-btn" onclick="deleteVote()">삭제 투표</button>
@@ -147,6 +150,8 @@
     const path = window.location.pathname;
     let currentTab = 'all';
     let currentSearch = '';
+    let currentPage = 1;
+    const PAGE_SIZE = 15;
 
     window.onload = () => {
         if (path.startsWith('/post/')) {
@@ -157,7 +162,6 @@
         }
     };
 
-    // 이미지 붙여넣기 업로드
     document.getElementById('w-content').addEventListener('paste', async (e) => {
         const items = e.clipboardData.items;
         for (const item of items) {
@@ -196,6 +200,7 @@
 
     function doSearch() {
         currentSearch = document.getElementById('search-input').value;
+        currentPage = 1;
         if (currentTab === 'all') loadList();
         else if (currentTab === 'hot') loadHot();
         else loadDeleted();
@@ -203,12 +208,14 @@
 
     function switchTab(tab) {
         currentTab = tab;
+        currentPage = 1;
         document.getElementById('search-input').value = '';
         currentSearch = '';
         ['all','hot','deleted'].forEach(t => {
             document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
         });
         document.getElementById('deleted-info-bar').style.display = tab === 'deleted' ? 'block' : 'none';
+        document.getElementById('sort-select').style.display = tab === 'deleted' ? 'none' : 'block';
         if (tab === 'all') loadList();
         else if (tab === 'hot') loadHot();
         else loadDeleted();
@@ -220,6 +227,25 @@
         document.getElementById('deleted-count').textContent = `${data.total}/10`;
     }
 
+    function renderPagination(total) {
+        const totalPages = Math.ceil(total / PAGE_SIZE);
+        if (totalPages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+        let html = '';
+        if (currentPage > 1) html += `<button class="arrow" onclick="goPage(${currentPage-1})">&#8249;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+        }
+        if (currentPage < totalPages) html += `<button class="arrow" onclick="goPage(${currentPage+1})">&#8250;</button>`;
+        document.getElementById('pagination').innerHTML = html;
+    }
+
+    function goPage(p) {
+        currentPage = p;
+        if (currentTab === 'all') loadList();
+        else if (currentTab === 'hot') loadHot();
+        window.scrollTo(0, 0);
+    }
+
     async function loadList() {
         document.getElementById('empty-msg').style.display = 'none';
         document.getElementById('table-head').innerHTML = `<tr>
@@ -229,9 +255,11 @@
             <th class="col-view">조회</th>
             <th class="col-date">날짜</th>
         </tr>`;
-        const res = await fetch(`/api/posts?search=${encodeURIComponent(currentSearch)}`);
-        const posts = await res.json();
-        renderPosts(posts, 'normal');
+        const sort = document.getElementById('sort-select').value;
+        const res = await fetch(`/api/posts?search=${encodeURIComponent(currentSearch)}&sort=${sort}&page=${currentPage}`);
+        const data = await res.json();
+        renderPosts(data.posts, 'normal');
+        renderPagination(data.total);
     }
 
     async function loadHot() {
@@ -245,6 +273,7 @@
         </tr>`;
         const res = await fetch('/api/posts/hot');
         const data = await res.json();
+        document.getElementById('pagination').innerHTML = '';
         if (data.posts.length === 0) {
             document.getElementById('post-list').innerHTML = '';
             document.getElementById('empty-msg').style.display = 'block';
@@ -256,6 +285,7 @@
 
     async function loadDeleted() {
         document.getElementById('empty-msg').style.display = 'none';
+        document.getElementById('pagination').innerHTML = '';
         document.getElementById('table-head').innerHTML = `<tr>
             <th>제목</th>
             <th class="col-auth">글쓴이</th>
@@ -276,8 +306,7 @@
 
     function timeLeft(deletedAt) {
         const expireTime = new Date(deletedAt).getTime() + 4 * 24 * 60 * 60 * 1000;
-        const now = Date.now();
-        const diff = expireTime - now;
+        const diff = expireTime - Date.now();
         if (diff <= 0) return { text: '오늘 삭제', color: '#c00' };
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -290,7 +319,7 @@
             document.getElementById('post-list').innerHTML = posts.map(p => {
                 const tl = timeLeft(p.deleted_at);
                 return `<tr>
-                    <td class="col-title deleted-title" onclick="location.href='/post/${p.id}'">${p.title}${p.comment_count > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}</td>
+                    <td class="col-title deleted-title" onclick="location.href='/post/${p.id}'">${p.title}${parseInt(p.comment_count) > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}</td>
                     <td class="col-auth" style="color:#bbb">${p.author}</td>
                     <td class="col-timeleft" style="color:${tl.color};font-size:12px">${tl.text}</td>
                     <td class="col-date" style="color:#bbb">${p.created_at.slice(5,10)}</td>
@@ -302,7 +331,7 @@
                 const scoreClass = score > 0 ? 'vote-pos' : score < 0 ? 'vote-neg' : 'vote-zero';
                 const scoreStr = score > 0 ? `+${score}` : `${score}`;
                 return `<tr>
-                    <td class="col-title" onclick="location.href='/post/${p.id}'">${p.title}${p.comment_count > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}</td>
+                    <td class="col-title" onclick="location.href='/post/${p.id}'">${p.title}${parseInt(p.comment_count) > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}</td>
                     <td class="col-auth">${p.author}</td>
                     <td class="col-vote"><span class="${scoreClass}">${scoreStr}</span></td>
                     <td class="col-view">${p.views}</td>
@@ -322,40 +351,35 @@
         document.getElementById('v-info').innerText = `작성자: ${p.author} | 조회 ${p.views} | ${p.created_at.slice(0,10)}`;
 
         const contentEl = document.getElementById('v-content');
-        const text = p.content.trim();
-
         contentEl.style.whiteSpace = 'pre-wrap';
+        const text = p.content.trim();
         contentEl.innerHTML = text.split('\n').map(line => {
-            const trimmed = line.trim();
-            if (trimmed.match(/\.(gif|jpg|jpeg|png|webp)(\?.*)?$/i)) {
-                return `<img src="${trimmed}" style="max-width:100%;border-radius:5px;display:block;margin:6px 0;">`;
-            } else if (trimmed.startsWith('http')) {
-                return `<a href="${trimmed}" target="_blank" style="color:#294870;word-break:break-all;">${trimmed}</a>`;
-            } else {
-                return line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const t = line.trim();
+            if (t.match(/\.(gif|jpg|jpeg|png|webp)(\?.*)?$/i)) {
+                return `<img src="${t}" style="max-width:100%;border-radius:5px;display:block;margin:6px 0;">`;
+            } else if (t.startsWith('http')) {
+                return `<a href="${t}" target="_blank" style="color:#294870;word-break:break-all;">${t}</a>`;
             }
+            return line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         }).join('\n');
 
-        // 삭제글 처리
         if (p.is_deleted) {
             const tl = timeLeft(p.deleted_at);
             document.getElementById('deleted-notice').style.display = 'block';
             document.getElementById('deleted-notice').innerHTML = `⚠️ 삭제 투표로 퇴장한 글입니다. <b>${tl.text}</b> 영구삭제됩니다.`;
             contentEl.classList.add('v-content-deleted');
             document.getElementById('del-vote-btn').style.display = 'none';
+            document.getElementById('delete-vote-info').innerText = '';
         } else {
             document.getElementById('deleted-notice').style.display = 'none';
             contentEl.classList.remove('v-content-deleted');
             document.getElementById('del-vote-btn').style.display = 'inline-block';
+            const threshold = Math.floor(p.views * (1 / (p.views + 7) + 1 / 2)) + 1;
+            document.getElementById('delete-vote-info').innerText = `삭제 투표: ${p.delete_votes || 0} / ${threshold}표`;
         }
 
         document.getElementById('v-up').innerText = p.likes;
         document.getElementById('v-down').innerText = p.dislikes;
-
-        const threshold = Math.floor(p.views * (1 / (p.views + 7) + 1 / 2)) + 1;
-        document.getElementById('delete-vote-info').innerText =
-            p.is_deleted ? '' : `삭제 투표: ${p.delete_votes || 0} / ${threshold}표`;
-
         loadComments(id);
     }
 
@@ -384,8 +408,7 @@
             location.href = '/';
         } else {
             localStorage.setItem('delvoted_' + id, 'true');
-            document.getElementById('delete-vote-info').innerText =
-                `삭제 투표: ${data.delete_votes} / ${data.threshold}표`;
+            document.getElementById('delete-vote-info').innerText = `삭제 투표: ${data.delete_votes} / ${data.threshold}표`;
             alert(`삭제 투표가 반영되었습니다. (${data.delete_votes}/${data.threshold}표)`);
         }
     }
@@ -408,7 +431,7 @@
 
     function renderContent(text) {
         text = text.trim();
-        if (text.match(/\.(gif|jpg|jpeg|png|webp)$/i)) {
+        if (text.match(/\.(gif|jpg|jpeg|png|webp)(\?.*)?$/i)) {
             return `<img src="${text}" style="max-width:200px;max-height:200px;border-radius:4px;display:block;margin-top:4px;">`;
         } else if (text.startsWith('http')) {
             return `<a href="${text}" target="_blank" style="color:#294870;word-break:break-all;">${text}</a>`;
@@ -508,3 +531,6 @@
 </script>
 </body>
 </html>
+                    
+
+    
