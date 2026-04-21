@@ -7,15 +7,40 @@
         body { font-family: 'Malgun Gothic', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 850px; margin: 0 auto; background: #fff; padding: 30px; border: 1px solid #ccc; min-height: 700px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         h1 { color: #294870; cursor: pointer; text-align: center; border-bottom: 2px solid #294870; padding-bottom: 15px; margin-bottom: 20px; }
-        .tabs { display: flex; border-bottom: 2px solid #294870; margin-bottom: 0; }
+        .tabs { display: flex; border-bottom: 2px solid #294870; margin-bottom: 0; align-items: flex-end; }
         .tab { padding: 10px 20px; cursor: pointer; font-size: 14px; font-weight: bold; color: #888; border: none; background: none; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: 0.2s; }
         .tab.active { color: #294870; border-bottom: 3px solid #294870; }
         .tab:hover { color: #294870; }
         .tab-badge { font-size: 11px; background: #e0e0e0; color: #555; border-radius: 10px; padding: 1px 6px; margin-left: 4px; }
+        .tab-spacer { flex: 1; }
+
+        /* 인기글 기준 뱃지 */
+        .hot-info {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px 8px;
+            font-size: 12px;
+            color: #294870;
+            border-left: 3px solid #294870;
+            background: #eef2f8;
+            margin-bottom: -2px;
+        }
+        .hot-info.visible { display: flex; }
+        .hot-info .label { font-weight: bold; }
+        .hot-info .val { background: #294870; color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: bold; }
+        .hot-info .muted { color: #aaa; font-size: 11px; }
+
+        /* 검색박스 */
         .search-box { display: flex; gap: 8px; margin: 14px 0 10px; align-items: center; }
+        .period-btns { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; flex: 3; }
+        .period-btn { flex: 1; padding: 8px 0; font-size: 12px; font-weight: bold; color: #888; background: #fff; border: none; cursor: pointer; transition: 0.15s; text-align: center; }
+        .period-btn.active { background: #294870; color: #fff; }
+        .period-btn:not(:last-child) { border-right: 1px solid #ddd; }
         .search-box input { flex: 7; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
         .search-box select { flex: 3; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; color: #444; background: #fff; }
         .search-box button { padding: 8px 18px; background: #294870; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+
         .list-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .list-table th { background: #f8f9fa; border-bottom: 1px solid #ddd; padding: 10px; font-size: 13px; color: #666; font-weight: 500; }
         .list-table td { border-bottom: 1px solid #eee; padding: 10px; font-size: 13px; vertical-align: middle; }
@@ -71,6 +96,38 @@
         .deleted-info-bar { background: #f5f5f5; border-left: 3px solid #ccc; border-radius: 0; padding: 9px 14px; margin-bottom: 10px; font-size: 12px; color: #888; }
         #paste-hint { font-size: 12px; color: #aaa; margin-top: -8px; margin-bottom: 10px; }
         .uploading { font-size: 12px; color: #294870; margin-top: -8px; margin-bottom: 10px; }
+
+        /* NEW 뱃지 */
+        .new-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: bold;
+            color: #fff;
+            background: #e83030;
+            border-radius: 3px;
+            padding: 1px 5px;
+            margin-right: 5px;
+            vertical-align: middle;
+            line-height: 1.5;
+        }
+
+        /* 🔥 불꽃 애니메이션 */
+        .fire-icon {
+            display: inline-block;
+            font-size: 14px;
+            margin-right: 4px;
+            vertical-align: middle;
+            animation: fireFlicker 0.6s ease-in-out infinite alternate;
+            transform-origin: bottom center;
+            filter: drop-shadow(0 0 3px rgba(255, 100, 0, 0.8));
+        }
+        @keyframes fireFlicker {
+            0%   { transform: scale(1)    rotate(-4deg); filter: drop-shadow(0 0 2px rgba(255,80,0,0.7)); }
+            25%  { transform: scale(1.08) rotate(2deg);  filter: drop-shadow(0 0 5px rgba(255,160,0,0.9)); }
+            50%  { transform: scale(0.96) rotate(-3deg); filter: drop-shadow(0 0 3px rgba(255,60,0,0.8)); }
+            75%  { transform: scale(1.05) rotate(3deg);  filter: drop-shadow(0 0 6px rgba(255,180,0,1));   }
+            100% { transform: scale(1.02) rotate(-2deg); filter: drop-shadow(0 0 4px rgba(255,120,0,0.9)); }
+        }
     </style>
 </head>
 <body>
@@ -82,9 +139,20 @@
             <button class="tab active" id="tab-all" onclick="switchTab('all')">전체글</button>
             <button class="tab" id="tab-hot" onclick="switchTab('hot')">🔥 인기글</button>
             <button class="tab" id="tab-deleted" onclick="switchTab('deleted')">삭제글 <span class="tab-badge" id="deleted-count">0/10</span></button>
+            <div class="tab-spacer"></div>
+            <div class="hot-info" id="hot-info">
+                <span class="label">기준</span>
+                <span class="val" id="hot-threshold-val">순추천 ? 이상</span>
+                <span class="muted" id="hot-updated-at">10분 갱신</span>
+            </div>
         </div>
 
         <div class="search-box">
+            <div class="period-btns" id="period-btns">
+                <button class="period-btn active" onclick="setPeriod('today')">오늘</button>
+                <button class="period-btn" onclick="setPeriod('week')">일주일</button>
+                <button class="period-btn" onclick="setPeriod('all')">전체</button>
+            </div>
             <input id="search-input" placeholder="제목 검색..." onkeydown="if(event.key==='Enter') doSearch()">
             <select id="sort-select" onchange="doSearch()">
                 <option value="newest">최신순</option>
@@ -151,6 +219,7 @@
     let currentTab = 'all';
     let currentSearch = '';
     let currentPage = 1;
+    let currentPeriod = 'today';
     const PAGE_SIZE = 15;
 
     window.onload = () => {
@@ -162,6 +231,17 @@
         }
     };
 
+    // ── 기간 토글 ──
+    function setPeriod(p) {
+        currentPeriod = p;
+        currentPage = 1;
+        document.querySelectorAll('.period-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', ['today','week','all'][i] === p);
+        });
+        if (currentTab === 'all') loadList();
+    }
+
+    // ── 이미지 붙여넣기 ──
     document.getElementById('w-content').addEventListener('paste', async (e) => {
         const items = e.clipboardData.items;
         for (const item of items) {
@@ -215,7 +295,12 @@
             document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
         });
         document.getElementById('deleted-info-bar').style.display = tab === 'deleted' ? 'block' : 'none';
-        document.getElementById('sort-select').style.display = tab === 'deleted' ? 'none' : 'block';
+        document.getElementById('sort-select').style.display = tab === 'deleted' ? 'none' : '';
+        document.getElementById('period-btns').style.display = tab === 'all' ? '' : 'none';
+
+        // 인기글 기준 뱃지 표시/숨김
+        document.getElementById('hot-info').classList.toggle('visible', tab === 'hot');
+
         if (tab === 'all') loadList();
         else if (tab === 'hot') loadHot();
         else loadDeleted();
@@ -256,7 +341,7 @@
             <th class="col-date">날짜</th>
         </tr>`;
         const sort = document.getElementById('sort-select').value;
-        const res = await fetch(`/api/posts?search=${encodeURIComponent(currentSearch)}&sort=${sort}&page=${currentPage}`);
+        const res = await fetch(`/api/posts?search=${encodeURIComponent(currentSearch)}&sort=${sort}&page=${currentPage}&period=${currentPeriod}`);
         const data = await res.json();
         renderPosts(data.posts, 'normal');
         renderPagination(data.total);
@@ -274,12 +359,18 @@
         const res = await fetch('/api/posts/hot');
         const data = await res.json();
         document.getElementById('pagination').innerHTML = '';
+
+        // 인기글 기준 뱃지 업데이트
+        document.getElementById('hot-threshold-val').textContent = `순추천 ${data.threshold}점 이상`;
+        const minAgo = Math.round((Date.now() - data.updatedAt) / 60000);
+        document.getElementById('hot-updated-at').textContent = minAgo < 1 ? '방금 갱신' : `${minAgo}분 전 갱신`;
+
         if (data.posts.length === 0) {
             document.getElementById('post-list').innerHTML = '';
             document.getElementById('empty-msg').style.display = 'block';
             document.getElementById('empty-msg').textContent = '아직 인기글이 없어요 🥲';
         } else {
-            renderPosts(data.posts, 'normal');
+            renderPosts(data.posts, 'hot');
         }
     }
 
@@ -314,6 +405,13 @@
         return { text: `${hours}시간 남음`, color: '#c00' };
     }
 
+    // NEW 뱃지: 24시간 미만이고 내가 읽지 않은 글
+    function isNew(post) {
+        const age = Date.now() - new Date(post.created_at).getTime();
+        if (age > 24 * 60 * 60 * 1000) return false;
+        return !localStorage.getItem(`read_${post.id}`);
+    }
+
     function renderPosts(posts, type) {
         if (type === 'deleted') {
             document.getElementById('post-list').innerHTML = posts.map(p => {
@@ -325,13 +423,28 @@
                     <td class="col-date" style="color:#bbb">${p.created_at.slice(5,10)}</td>
                 </tr>`;
             }).join('');
+        } else if (type === 'hot') {
+            document.getElementById('post-list').innerHTML = posts.map(p => {
+                const score = p.likes - p.dislikes;
+                const scoreClass = score > 0 ? 'vote-pos' : score < 0 ? 'vote-neg' : 'vote-zero';
+                const scoreStr = score > 0 ? `+${score}` : `${score}`;
+                const newBadge = isNew(p) ? `<span class="new-badge">NEW</span>` : '';
+                return `<tr>
+                    <td class="col-title" onclick="location.href='/post/${p.id}'"><span class="fire-icon">🔥</span>${newBadge}${p.title}${parseInt(p.comment_count) > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}</td>
+                    <td class="col-auth">${p.author}</td>
+                    <td class="col-vote"><span class="${scoreClass}">${scoreStr}</span></td>
+                    <td class="col-view">${p.views}</td>
+                    <td class="col-date">${p.created_at.slice(5,10)}</td>
+                </tr>`;
+            }).join('');
         } else {
             document.getElementById('post-list').innerHTML = posts.map(p => {
                 const score = p.likes - p.dislikes;
                 const scoreClass = score > 0 ? 'vote-pos' : score < 0 ? 'vote-neg' : 'vote-zero';
                 const scoreStr = score > 0 ? `+${score}` : `${score}`;
+                const newBadge = isNew(p) ? `<span class="new-badge">NEW</span>` : '';
                 return `<tr>
-                    <td class="col-title" onclick="location.href='/post/${p.id}'">${p.title}${parseInt(p.comment_count) > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}</td>
+                    <td class="col-title" onclick="location.href='/post/${p.id}'">${newBadge}${p.title}${parseInt(p.comment_count) > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}</td>
                     <td class="col-auth">${p.author}</td>
                     <td class="col-vote"><span class="${scoreClass}">${scoreStr}</span></td>
                     <td class="col-view">${p.views}</td>
@@ -342,6 +455,9 @@
     }
 
     async function showDetail(id) {
+        // 읽음 처리 → NEW 뱃지 제거
+        localStorage.setItem(`read_${id}`, 'true');
+
         document.getElementById('list-view').style.display = 'none';
         document.getElementById('post-view').style.display = 'block';
         const res = await fetch(`/api/get-post/${id}`);
@@ -436,7 +552,8 @@
         } else if (text.startsWith('http')) {
             return `<a href="${text}" target="_blank" style="color:#294870;word-break:break-all;">${text}</a>`;
         }
-        return `<span style="white-space:pre-wrap;word-break:break-word;">${text}</span>`;
+        const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return `<span style="white-space:pre-wrap;word-break:break-word;">${escaped}</span>`;
     }
 
     async function loadComments(postId) {
@@ -531,6 +648,3 @@
 </script>
 </body>
 </html>
-                    
-
-    
