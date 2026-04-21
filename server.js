@@ -33,18 +33,11 @@ function deleteThreshold(views) {
   return Math.floor(views * (1 / (views + 7) + 1 / 2)) + 1;
 }
 
-// 만료된 삭제글 정리
 async function cleanExpiredDeletedPosts() {
   try {
     const expireDate = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
-    await pool.query(
-      'DELETE FROM posts WHERE is_deleted = TRUE AND deleted_at < $1',
-      [expireDate]
-    );
-    // 10개 초과시 가장 오래된 것 삭제
-    const deleted = await pool.query(
-      'SELECT id FROM posts WHERE is_deleted = TRUE ORDER BY deleted_at ASC'
-    );
+    await pool.query('DELETE FROM posts WHERE is_deleted = TRUE AND deleted_at < $1', [expireDate]);
+    const deleted = await pool.query('SELECT id FROM posts WHERE is_deleted = TRUE ORDER BY deleted_at ASC');
     if (deleted.rows.length > 10) {
       const toDelete = deleted.rows.slice(0, deleted.rows.length - 10);
       for (const row of toDelete) {
@@ -58,13 +51,19 @@ async function cleanExpiredDeletedPosts() {
 
 setInterval(cleanExpiredDeletedPosts, 60 * 60 * 1000);
 
-// 1. 전체글 목록
+// 1. 전체글 (검색 + 정렬 + 페이지네이션)
 app.get('/api/posts', async (req, res) => {
-  const { search = '' } = req.query;
+  const { search = '', sort = 'newest', page = 1 } = req.query;
+  const limit = 15;
+  const offset = (page - 1) * limit;
+  const orderBy = sort === 'views' ? 'posts.views DESC'
+                : sort === 'votes' ? '(posts.likes - posts.dislikes) DESC'
+                : 'posts.id DESC';
   try {
+    // ✅ 버그 수정: is_deleted → posts.is_deleted (JOIN 후 ambiguous 방지)
     const where = search
-      ? `WHERE is_deleted = FALSE AND title ILIKE $1`
-      : `WHERE is_deleted = FALSE`;
+      ? `WHERE posts.is_deleted = FALSE AND posts.title ILIKE $1`
+      : `WHERE posts.is_deleted = FALSE`;
     const params = search ? [`%${search}%`] : [];
     const result = await pool.query(`
       SELECT posts.*, COUNT(comments.id) AS comment_count
@@ -72,10 +71,13 @@ app.get('/api/posts', async (req, res) => {
       LEFT JOIN comments ON comments.post_id = posts.id
       ${where}
       GROUP BY posts.id
-      ORDER BY posts.id DESC
+      ORDER BY ${orderBy}
+      LIMIT ${limit} OFFSET ${offset}
     `, params);
-    res.json(result.rows);
+    const countResult = await pool.query(`SELECT COUNT(*) FROM posts ${where}`, params);
+    res.json({ posts: result.rows, total: parseInt(countResult.rows[0].count) });
   } catch (err) {
+    console.error('GET /api/posts error:', err);
     res.status(500).send(err.message);
   }
 });
@@ -93,24 +95,26 @@ app.get('/api/posts/hot', async (req, res) => {
       SELECT posts.*, COUNT(comments.id) AS comment_count
       FROM posts
       LEFT JOIN comments ON comments.post_id = posts.id
-      WHERE is_deleted = FALSE AND (posts.likes - posts.dislikes) >= $1
+      WHERE posts.is_deleted = FALSE AND (posts.likes - posts.dislikes) >= $1
       GROUP BY posts.id
       ORDER BY (posts.likes - posts.dislikes) DESC
     `, [threshold]);
     res.json({ posts: result.rows, threshold });
   } catch (err) {
+    console.error('GET /api/posts/hot error:', err);
     res.status(500).send(err.message);
   }
 });
 
-// 3. 삭제글 목록
+// 3. 삭제글
 app.get('/api/posts/deleted', async (req, res) => {
   const { search = '' } = req.query;
   try {
     await cleanExpiredDeletedPosts();
+    // ✅ 버그 수정: is_deleted → posts.is_deleted
     const where = search
-      ? `WHERE is_deleted = TRUE AND title ILIKE $1`
-      : `WHERE is_deleted = TRUE`;
+      ? `WHERE posts.is_deleted = TRUE AND posts.title ILIKE $1`
+      : `WHERE posts.is_deleted = TRUE`;
     const params = search ? [`%${search}%`] : [];
     const result = await pool.query(`
       SELECT posts.*, COUNT(comments.id) AS comment_count
@@ -123,11 +127,12 @@ app.get('/api/posts/deleted', async (req, res) => {
     const total = await pool.query('SELECT COUNT(*) FROM posts WHERE is_deleted = TRUE');
     res.json({ posts: result.rows, total: parseInt(total.rows[0].count) });
   } catch (err) {
+    console.error('GET /api/posts/deleted error:', err);
     res.status(500).send(err.message);
   }
 });
 
-// 4. 게시글 상세 (조회수 +1)
+// 4. 게시글 상세
 app.get('/api/get-post/:id', async (req, res) => {
   try {
     await pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [req.params.id]);
@@ -194,7 +199,7 @@ app.post('/api/posts/:id/delete-vote', async (req, res) => {
   }
 });
 
-// 8. ImgBB 업로드 프록시
+// 8. ImgBB 업로드
 app.post('/api/upload-image', async (req, res) => {
   const { image } = req.body;
   try {
@@ -259,3 +264,5 @@ app.post('/api/comments', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+      
