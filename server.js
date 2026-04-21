@@ -2,6 +2,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const http = require('http');
 const { Server } = require('socket.io');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 const server = http.createServer(app);
@@ -13,9 +14,39 @@ const pool = new Pool({
 });
 
 app.use(express.json({ limit: '10mb' }));
+app.use(cookieParser());
 
 app.get('/', (req, res) => res.sendFile(__dirname + '/index.html'));
 app.get('/post/:id', (req, res) => res.sendFile(__dirname + '/index.html'));
+
+// ── 인기글 기준 캐시 (10분마다 갱신) ──
+let hotCache = { threshold: 5, avg: 0, stddev: 0, updatedAt: 0 };
+
+async function refreshHotCache() {
+  try {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const result = await pool.query(`
+      SELECT
+        COALESCE(AVG(likes - dislikes), 0) AS avg,
+        COALESCE(STDDEV_POP(likes - dislikes), 0) AS stddev
+      FROM posts
+      WHERE is_deleted = FALSE AND created_at >= $1
+    `, [weekAgo]);
+    const { avg, stddev } = result.rows[0];
+    const computed = parseFloat(avg) + parseFloat(stddev) * 1.6;
+    hotCache = {
+      threshold: Math.max(5, Math.round(computed * 10) / 10),
+      avg: Math.round(parseFloat(avg) * 10) / 10,
+      stddev: Math.round(parseFloat(stddev) * 10) / 10,
+      updatedAt: Date.now()
+    };
+  } catch (err) {
+    console.error('hotCache refresh error:', err);
+  }
+}
+
+refreshHotCache();
+setInterval(refreshHotCache, 10 * 60 * 1000);
 
 async function checkNickname(author, password) {
   const postCheck = await pool.query(
@@ -51,20 +82,32 @@ async function cleanExpiredDeletedPosts() {
 
 setInterval(cleanExpiredDeletedPosts, 60 * 60 * 1000);
 
-// 1. 전체글 (검색 + 정렬 + 페이지네이션)
+// 1. 전체글 (검색 + 정렬 + 기간 + 페이지네이션)
 app.get('/api/posts', async (req, res) => {
-  const { search = '', sort = 'newest', page = 1 } = req.query;
+  const { search = '', sort = 'newest', page = 1, period = 'all' } = req.query;
   const limit = 15;
   const offset = (page - 1) * limit;
   const orderBy = sort === 'views' ? 'posts.views DESC'
                 : sort === 'votes' ? '(posts.likes - posts.dislikes) DESC'
                 : 'posts.id DESC';
   try {
-    // ✅ 버그 수정: is_deleted → posts.is_deleted (JOIN 후 ambiguous 방지)
-    const where = search
-      ? `WHERE posts.is_deleted = FALSE AND posts.title ILIKE $1`
-      : `WHERE posts.is_deleted = FALSE`;
-    const params = search ? [`%${search}%`] : [];
+    const conditions = ['posts.is_deleted = FALSE'];
+    const params = [];
+
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`posts.title ILIKE $${params.length}`);
+    }
+    if (period === 'today') {
+      params.push(new Date(Date.now() - 24 * 60 * 60 * 1000));
+      conditions.push(`posts.created_at >= $${params.length}`);
+    } else if (period === 'week') {
+      params.push(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+      conditions.push(`posts.created_at >= $${params.length}`);
+    }
+
+    const where = `WHERE ${conditions.join(' AND ')}`;
+
     const result = await pool.query(`
       SELECT posts.*, COUNT(comments.id) AS comment_count
       FROM posts
@@ -74,6 +117,7 @@ app.get('/api/posts', async (req, res) => {
       ORDER BY ${orderBy}
       LIMIT ${limit} OFFSET ${offset}
     `, params);
+
     const countResult = await pool.query(`SELECT COUNT(*) FROM posts ${where}`, params);
     res.json({ posts: result.rows, total: parseInt(countResult.rows[0].count) });
   } catch (err) {
@@ -82,15 +126,10 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
-// 2. 인기글
+// 2. 인기글 (캐시 사용)
 app.get('/api/posts/hot', async (req, res) => {
   try {
-    const thresholdResult = await pool.query(`
-      SELECT PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY (likes - dislikes)) AS threshold
-      FROM posts WHERE is_deleted = FALSE
-    `);
-    const dynamicThreshold = thresholdResult.rows[0].threshold || 5;
-    const threshold = Math.max(5, dynamicThreshold);
+    const { threshold, avg, stddev, updatedAt } = hotCache;
     const result = await pool.query(`
       SELECT posts.*, COUNT(comments.id) AS comment_count
       FROM posts
@@ -99,7 +138,7 @@ app.get('/api/posts/hot', async (req, res) => {
       GROUP BY posts.id
       ORDER BY (posts.likes - posts.dislikes) DESC
     `, [threshold]);
-    res.json({ posts: result.rows, threshold });
+    res.json({ posts: result.rows, threshold, avg, stddev, updatedAt });
   } catch (err) {
     console.error('GET /api/posts/hot error:', err);
     res.status(500).send(err.message);
@@ -111,7 +150,6 @@ app.get('/api/posts/deleted', async (req, res) => {
   const { search = '' } = req.query;
   try {
     await cleanExpiredDeletedPosts();
-    // ✅ 버그 수정: is_deleted → posts.is_deleted
     const where = search
       ? `WHERE posts.is_deleted = TRUE AND posts.title ILIKE $1`
       : `WHERE posts.is_deleted = TRUE`;
@@ -132,11 +170,31 @@ app.get('/api/posts/deleted', async (req, res) => {
   }
 });
 
-// 4. 게시글 상세
+// 4. 게시글 상세 (쿠키 기반 조회수: 하루 3번)
 app.get('/api/get-post/:id', async (req, res) => {
   try {
-    await pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [req.params.id]);
-    const result = await pool.query('SELECT * FROM posts WHERE id = $1', [req.params.id]);
+    const postId = req.params.id;
+    const cookieKey = `viewed_${postId}`;
+    const cookieVal = req.cookies[cookieKey];
+    const today = new Date().toISOString().slice(0, 10);
+
+    let viewCount = 0;
+    if (cookieVal) {
+      try {
+        const parsed = JSON.parse(cookieVal);
+        if (parsed.date === today) viewCount = parsed.count;
+      } catch {}
+    }
+
+    if (viewCount < 3) {
+      await pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [postId]);
+      res.cookie(cookieKey, JSON.stringify({ date: today, count: viewCount + 1 }), {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true
+      });
+    }
+
+    const result = await pool.query('SELECT * FROM posts WHERE id = $1', [postId]);
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).send(err.message);
@@ -264,5 +322,3 @@ app.post('/api/comments', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-      
