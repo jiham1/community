@@ -324,14 +324,17 @@
         const contentEl = document.getElementById('v-content');
         const text = p.content.trim();
 
-        if (text.match(/\.(gif|jpg|jpeg|png|webp)$/i)) {
-            contentEl.innerHTML = `<img src="${text}">`;
-        } else if (text.startsWith('http')) {
-            contentEl.innerHTML = `<a href="${text}" target="_blank">${text}</a>`;
-        } else {
-            contentEl.style.whiteSpace = 'pre-wrap';
-            contentEl.innerText = text;
-        }
+        contentEl.style.whiteSpace = 'pre-wrap';
+        contentEl.innerHTML = text.split('\n').map(line => {
+            const trimmed = line.trim();
+            if (trimmed.match(/\.(gif|jpg|jpeg|png|webp)(\?.*)?$/i)) {
+                return `<img src="${trimmed}" style="max-width:100%;border-radius:5px;display:block;margin:6px 0;">`;
+            } else if (trimmed.startsWith('http')) {
+                return `<a href="${trimmed}" target="_blank" style="color:#294870;word-break:break-all;">${trimmed}</a>`;
+            } else {
+                return line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            }
+        }).join('\n');
 
         // 삭제글 처리
         if (p.is_deleted) {
