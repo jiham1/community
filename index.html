@@ -31,15 +31,15 @@
         .hot-info .val { background: #294870; color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: bold; }
         .hot-info .muted { color: #aaa; font-size: 11px; }
 
-        /* 검색박스 */
+        /* 검색박스: [검색입력] [오늘/일주일/전체] [정렬] [버튼] */
         .search-box { display: flex; gap: 8px; margin: 14px 0 10px; align-items: center; }
-        .period-btns { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; flex: 3; }
-        .period-btn { flex: 1; padding: 8px 0; font-size: 12px; font-weight: bold; color: #888; background: #fff; border: none; cursor: pointer; transition: 0.15s; text-align: center; }
+        .search-box input { flex: 5; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+        .period-btns { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+        .period-btn { padding: 8px 10px; font-size: 12px; font-weight: bold; color: #888; background: #fff; border: none; cursor: pointer; transition: 0.15s; white-space: nowrap; }
         .period-btn.active { background: #294870; color: #fff; }
         .period-btn:not(:last-child) { border-right: 1px solid #ddd; }
-        .search-box input { flex: 7; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
-        .search-box select { flex: 3; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; color: #444; background: #fff; }
-        .search-box button { padding: 8px 18px; background: #294870; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+        .search-box select { padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; color: #444; background: #fff; }
+        .search-box button { padding: 8px 18px; background: #294870; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; white-space: nowrap; }
 
         .list-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .list-table th { background: #f8f9fa; border-bottom: 1px solid #ddd; padding: 10px; font-size: 13px; color: #666; font-weight: 500; }
@@ -93,7 +93,7 @@
         .write-form input, .write-form textarea { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .btn-submit { background: #294870; color: #fff; border: none; padding: 15px; width: 100%; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 4px; }
         .empty-msg { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
-        .deleted-info-bar { background: #f5f5f5; border-left: 3px solid #ccc; border-radius: 0; padding: 9px 14px; margin-bottom: 10px; font-size: 12px; color: #888; }
+        .deleted-info-bar { background: #f5f5f5; border-left: 3px solid #ccc; padding: 9px 14px; margin-bottom: 10px; font-size: 12px; color: #888; }
         #paste-hint { font-size: 12px; color: #aaa; margin-top: -8px; margin-bottom: 10px; }
         .uploading { font-size: 12px; color: #294870; margin-top: -8px; margin-bottom: 10px; }
 
@@ -119,13 +119,12 @@
             vertical-align: middle;
             animation: fireFlicker 0.6s ease-in-out infinite alternate;
             transform-origin: bottom center;
-            filter: drop-shadow(0 0 3px rgba(255, 100, 0, 0.8));
         }
         @keyframes fireFlicker {
             0%   { transform: scale(1)    rotate(-4deg); filter: drop-shadow(0 0 2px rgba(255,80,0,0.7)); }
             25%  { transform: scale(1.08) rotate(2deg);  filter: drop-shadow(0 0 5px rgba(255,160,0,0.9)); }
             50%  { transform: scale(0.96) rotate(-3deg); filter: drop-shadow(0 0 3px rgba(255,60,0,0.8)); }
-            75%  { transform: scale(1.05) rotate(3deg);  filter: drop-shadow(0 0 6px rgba(255,180,0,1));   }
+            75%  { transform: scale(1.05) rotate(3deg);  filter: drop-shadow(0 0 6px rgba(255,180,0,1)); }
             100% { transform: scale(1.02) rotate(-2deg); filter: drop-shadow(0 0 4px rgba(255,120,0,0.9)); }
         }
     </style>
@@ -147,13 +146,14 @@
             </div>
         </div>
 
+        <!-- 검색박스: [검색입력] [오늘/일주일/전체] [정렬] [검색버튼] -->
         <div class="search-box">
+            <input id="search-input" placeholder="제목 검색..." onkeydown="if(event.key==='Enter') doSearch()">
             <div class="period-btns" id="period-btns">
                 <button class="period-btn active" onclick="setPeriod('today')">오늘</button>
                 <button class="period-btn" onclick="setPeriod('week')">일주일</button>
                 <button class="period-btn" onclick="setPeriod('all')">전체</button>
             </div>
-            <input id="search-input" placeholder="제목 검색..." onkeydown="if(event.key==='Enter') doSearch()">
             <select id="sort-select" onchange="doSearch()">
                 <option value="newest">최신순</option>
                 <option value="views">조회순</option>
@@ -235,8 +235,8 @@
     function setPeriod(p) {
         currentPeriod = p;
         currentPage = 1;
-        document.querySelectorAll('.period-btn').forEach((btn, i) => {
-            btn.classList.toggle('active', ['today','week','all'][i] === p);
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.textContent === { today: '오늘', week: '일주일', all: '전체' }[p]);
         });
         if (currentTab === 'all') loadList();
     }
@@ -297,8 +297,6 @@
         document.getElementById('deleted-info-bar').style.display = tab === 'deleted' ? 'block' : 'none';
         document.getElementById('sort-select').style.display = tab === 'deleted' ? 'none' : '';
         document.getElementById('period-btns').style.display = tab === 'all' ? '' : 'none';
-
-        // 인기글 기준 뱃지 표시/숨김
         document.getElementById('hot-info').classList.toggle('visible', tab === 'hot');
 
         if (tab === 'all') loadList();
@@ -360,7 +358,6 @@
         const data = await res.json();
         document.getElementById('pagination').innerHTML = '';
 
-        // 인기글 기준 뱃지 업데이트
         document.getElementById('hot-threshold-val').textContent = `순추천 ${data.threshold}점 이상`;
         const minAgo = Math.round((Date.now() - data.updatedAt) / 60000);
         document.getElementById('hot-updated-at').textContent = minAgo < 1 ? '방금 갱신' : `${minAgo}분 전 갱신`;
@@ -405,7 +402,6 @@
         return { text: `${hours}시간 남음`, color: '#c00' };
     }
 
-    // NEW 뱃지: 24시간 미만이고 내가 읽지 않은 글
     function isNew(post) {
         const age = Date.now() - new Date(post.created_at).getTime();
         if (age > 24 * 60 * 60 * 1000) return false;
@@ -455,7 +451,6 @@
     }
 
     async function showDetail(id) {
-        // 읽음 처리 → NEW 뱃지 제거
         localStorage.setItem(`read_${id}`, 'true');
 
         document.getElementById('list-view').style.display = 'none';
