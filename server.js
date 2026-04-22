@@ -2,7 +2,6 @@ const express = require('express');
 const { Pool } = require('pg');
 const http = require('http');
 const { Server } = require('socket.io');
-const cookieParser = require('cookie-parser');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,10 +13,24 @@ const pool = new Pool({
 });
 
 app.use(express.json({ limit: '10mb' }));
-app.use(cookieParser());
 
 app.get('/', (req, res) => res.sendFile(__dirname + '/index.html'));
 app.get('/post/:id', (req, res) => res.sendFile(__dirname + '/index.html'));
+
+// ── 쿠키 직접 파싱 (cookie-parser 없이) ──
+function parseCookies(req) {
+  const list = {};
+  const rc = req.headers.cookie;
+  if (rc) {
+    rc.split(';').forEach(cookie => {
+      const parts = cookie.split('=');
+      const key = parts[0].trim();
+      const val = parts.slice(1).join('=').trim();
+      list[key] = decodeURIComponent(val);
+    });
+  }
+  return list;
+}
 
 // ── 인기글 기준 캐시 (10분마다 갱신) ──
 let hotCache = { threshold: 5, avg: 0, stddev: 0, updatedAt: 0 };
@@ -170,31 +183,31 @@ app.get('/api/posts/deleted', async (req, res) => {
   }
 });
 
-// 4. 게시글 상세 (쿠키 기반 조회수: 하루 3번)
+// 4. 게시글 상세 (쿠키 직접 파싱, 하루 3번)
 app.get('/api/get-post/:id', async (req, res) => {
   try {
     const postId = req.params.id;
+    const cookies = parseCookies(req);
     const cookieKey = `viewed_${postId}`;
-    const cookieVal = req.cookies[cookieKey];
     const today = new Date().toISOString().slice(0, 10);
 
     let viewCount = 0;
-    if (cookieVal) {
+    if (cookies[cookieKey]) {
       try {
-        const parsed = JSON.parse(cookieVal);
+        const parsed = JSON.parse(cookies[cookieKey]);
         if (parsed.date === today) viewCount = parsed.count;
       } catch {}
     }
 
+    let setCookieHeader = null;
     if (viewCount < 3) {
       await pool.query('UPDATE posts SET views = views + 1 WHERE id = $1', [postId]);
-      res.cookie(cookieKey, JSON.stringify({ date: today, count: viewCount + 1 }), {
-        maxAge: 24 * 60 * 60 * 1000,
-        httpOnly: true
-      });
+      const newVal = encodeURIComponent(JSON.stringify({ date: today, count: viewCount + 1 }));
+      setCookieHeader = `${cookieKey}=${newVal}; Max-Age=86400; Path=/; HttpOnly`;
     }
 
     const result = await pool.query('SELECT * FROM posts WHERE id = $1', [postId]);
+    if (setCookieHeader) res.setHeader('Set-Cookie', setCookieHeader);
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).send(err.message);
