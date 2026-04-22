@@ -31,14 +31,12 @@
         .hot-info .val { background: #294870; color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: bold; }
         .hot-info .muted { color: #aaa; font-size: 11px; }
 
-        /* 검색박스: [검색입력] [오늘/일주일/전체] [정렬] [버튼] */
+        /* 검색박스 */
         .search-box { display: flex; gap: 8px; margin: 14px 0 10px; align-items: center; }
         .search-box input { flex: 5; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
-        .period-btns { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
-        .period-btn { padding: 8px 10px; font-size: 12px; font-weight: bold; color: #888; background: #fff; border: none; cursor: pointer; transition: 0.15s; white-space: nowrap; }
-        .period-btn.active { background: #294870; color: #fff; }
-        .period-btn:not(:last-child) { border-right: 1px solid #ddd; }
-        .search-box select { padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; color: #444; background: #fff; }
+        .filter-group { display: flex; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+        .filter-group select { padding: 8px 10px; border: none; font-size: 13px; color: #444; background: #fff; cursor: pointer; outline: none; }
+        .filter-group select:first-child { border-right: 1px solid #ddd; }
         .search-box button { padding: 8px 18px; background: #294870; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; white-space: nowrap; }
 
         .list-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -146,19 +144,21 @@
             </div>
         </div>
 
-        <!-- 검색박스: [검색입력] [오늘/일주일/전체] [정렬] [검색버튼] -->
+        <!-- 검색박스: [검색입력] [기간|정렬 묶음] [검색버튼] -->
         <div class="search-box">
             <input id="search-input" placeholder="제목 검색..." onkeydown="if(event.key==='Enter') doSearch()">
-            <div class="period-btns" id="period-btns">
-                <button class="period-btn active" onclick="setPeriod('today')">오늘</button>
-                <button class="period-btn" onclick="setPeriod('week')">일주일</button>
-                <button class="period-btn" onclick="setPeriod('all')">전체</button>
+            <div class="filter-group" id="filter-group">
+                <select id="period-select" onchange="setPeriod(this.value)">
+                    <option value="today">오늘</option>
+                    <option value="week">일주일</option>
+                    <option value="all">전체</option>
+                </select>
+                <select id="sort-select" onchange="doSearch()">
+                    <option value="newest">최신순</option>
+                    <option value="views">조회순</option>
+                    <option value="votes">추천순</option>
+                </select>
             </div>
-            <select id="sort-select" onchange="doSearch()">
-                <option value="newest">최신순</option>
-                <option value="views">조회순</option>
-                <option value="votes">추천순</option>
-            </select>
             <button onclick="doSearch()">검색</button>
         </div>
 
@@ -231,13 +231,10 @@
         }
     };
 
-    // ── 기간 토글 ──
+    // ── 기간 변경 ──
     function setPeriod(p) {
         currentPeriod = p;
         currentPage = 1;
-        document.querySelectorAll('.period-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.textContent === { today: '오늘', week: '일주일', all: '전체' }[p]);
-        });
         if (currentTab === 'all') loadList();
     }
 
@@ -296,7 +293,7 @@
         });
         document.getElementById('deleted-info-bar').style.display = tab === 'deleted' ? 'block' : 'none';
         document.getElementById('sort-select').style.display = tab === 'deleted' ? 'none' : '';
-        document.getElementById('period-btns').style.display = tab === 'all' ? '' : 'none';
+        document.getElementById('period-select').style.display = tab === 'all' ? '' : 'none';
         document.getElementById('hot-info').classList.toggle('visible', tab === 'hot');
 
         if (tab === 'all') loadList();
@@ -339,7 +336,8 @@
             <th class="col-date">날짜</th>
         </tr>`;
         const sort = document.getElementById('sort-select').value;
-        const res = await fetch(`/api/posts?search=${encodeURIComponent(currentSearch)}&sort=${sort}&page=${currentPage}&period=${currentPeriod}`);
+        const period = document.getElementById('period-select').value;
+        const res = await fetch(`/api/posts?search=${encodeURIComponent(currentSearch)}&sort=${sort}&page=${currentPage}&period=${period}`);
         const data = await res.json();
         renderPosts(data.posts, 'normal');
         renderPagination(data.total);
@@ -404,8 +402,14 @@
 
     function isNew(post) {
         const age = Date.now() - new Date(post.created_at).getTime();
-        if (age > 24 * 60 * 60 * 1000) return false;
+        if (age > 4 * 60 * 60 * 1000) return false;
         return !localStorage.getItem(`read_${post.id}`);
+    }
+
+    function isFireIcon(post) {
+        if (!post.became_hot_at) return false;
+        const age = Date.now() - new Date(post.became_hot_at).getTime();
+        return age <= 24 * 60 * 60 * 1000;
     }
 
     function renderPosts(posts, type) {
@@ -425,8 +429,9 @@
                 const scoreClass = score > 0 ? 'vote-pos' : score < 0 ? 'vote-neg' : 'vote-zero';
                 const scoreStr = score > 0 ? `+${score}` : `${score}`;
                 const newBadge = isNew(p) ? `<span class="new-badge">NEW</span>` : '';
+                const fireIcon = isFireIcon(p) ? `<span class="fire-icon">🔥</span>` : '';
                 return `<tr>
-                    <td class="col-title" onclick="location.href='/post/${p.id}'"><span class="fire-icon">🔥</span>${newBadge}${p.title}${parseInt(p.comment_count) > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}</td>
+                    <td class="col-title" onclick="location.href='/post/${p.id}'">${fireIcon}${newBadge}${p.title}${parseInt(p.comment_count) > 0 ? `<span class="comment-cnt">[${p.comment_count}]</span>` : ''}</td>
                     <td class="col-auth">${p.author}</td>
                     <td class="col-vote"><span class="${scoreClass}">${scoreStr}</span></td>
                     <td class="col-view">${p.views}</td>
