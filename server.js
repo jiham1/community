@@ -34,6 +34,8 @@ function parseCookies(req) {
 
 // ── 인기글 기준 캐시 (10분마다 갱신) ──
 let hotCache = { threshold: 5, avg: 0, stddev: 0, updatedAt: 0 };
+// 글이 인기글이 된 시각 메모리 추적 { postId: timestamp }
+const hotPromotedAt = {};
 
 async function refreshHotCache() {
   try {
@@ -47,8 +49,21 @@ async function refreshHotCache() {
     `, [weekAgo]);
     const { avg, stddev } = result.rows[0];
     const computed = parseFloat(avg) + parseFloat(stddev) * 1.6;
+    const newThreshold = Math.max(5, Math.round(computed * 10) / 10);
+
+    // 인기글 기준이 바뀌면 새로 인기글이 된 글들 기록
+    if (newThreshold !== hotCache.threshold) {
+      const hotResult = await pool.query(
+        `SELECT id FROM posts WHERE is_deleted = FALSE AND (likes - dislikes) >= $1`,
+        [newThreshold]
+      );
+      hotResult.rows.forEach(row => {
+        if (!hotPromotedAt[row.id]) hotPromotedAt[row.id] = Date.now();
+      });
+    }
+
     hotCache = {
-      threshold: Math.max(5, Math.round(computed * 10) / 10),
+      threshold: newThreshold,
       avg: Math.round(parseFloat(avg) * 10) / 10,
       stddev: Math.round(parseFloat(stddev) * 10) / 10,
       updatedAt: Date.now()
@@ -80,8 +95,11 @@ function deleteThreshold(views) {
 async function cleanExpiredDeletedPosts() {
   try {
     const expireDate = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
-    await pool.query('DELETE FROM posts WHERE is_deleted = TRUE AND deleted_at < $1', [expireDate]);
-    const deleted = await pool.query('SELECT id FROM posts WHERE is_deleted = TRUE ORDER BY deleted_at ASC');
+    await pool.query(
+      'DELETE FROM posts WHERE is_deleted = TRUE AND (deleted_at < $1 OR deleted_at IS NULL)',
+      [expireDate]
+    );
+    const deleted = await pool.query('SELECT id FROM posts WHERE is_deleted = TRUE ORDER BY deleted_at ASC NULLS LAST');
     if (deleted.rows.length > 10) {
       const toDelete = deleted.rows.slice(0, deleted.rows.length - 10);
       for (const row of toDelete) {
@@ -151,7 +169,20 @@ app.get('/api/posts/hot', async (req, res) => {
       GROUP BY posts.id
       ORDER BY (posts.likes - posts.dislikes) DESC
     `, [threshold]);
-    res.json({ posts: result.rows, threshold, avg, stddev, updatedAt });
+
+    // 인기글이 된 시각 기록 및 응답에 포함
+    const now = Date.now();
+    const posts = result.rows.map(p => {
+      if (!hotPromotedAt[p.id]) hotPromotedAt[p.id] = now;
+      return { ...p, became_hot_at: new Date(hotPromotedAt[p.id]).toISOString() };
+    });
+
+    // 24시간 지난 기록 정리
+    Object.keys(hotPromotedAt).forEach(id => {
+      if (now - hotPromotedAt[id] > 24 * 60 * 60 * 1000) delete hotPromotedAt[id];
+    });
+
+    res.json({ posts, threshold, avg, stddev, updatedAt });
   } catch (err) {
     console.error('GET /api/posts/hot error:', err);
     res.status(500).send(err.message);
