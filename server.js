@@ -34,8 +34,6 @@ function parseCookies(req) {
 
 // ── 인기글 기준 캐시 (10분마다 갱신) ──
 let hotCache = { threshold: 5, avg: 0, stddev: 0, updatedAt: 0 };
-// 글이 인기글이 된 시각 메모리 추적 { postId: timestamp }
-const hotPromotedAt = {};
 
 async function refreshHotCache() {
   try {
@@ -51,16 +49,17 @@ async function refreshHotCache() {
     const computed = parseFloat(avg) + parseFloat(stddev) * 1.6;
     const newThreshold = Math.max(5, Math.round(computed * 10) / 10);
 
-    // 인기글 기준이 바뀌면 새로 인기글이 된 글들 기록
-    if (newThreshold !== hotCache.threshold) {
-      const hotResult = await pool.query(
-        `SELECT id FROM posts WHERE is_deleted = FALSE AND (likes - dislikes) >= $1`,
-        [newThreshold]
-      );
-      hotResult.rows.forEach(row => {
-        if (!hotPromotedAt[row.id]) hotPromotedAt[row.id] = Date.now();
-      });
-    }
+    // 기준 충족하는 글 중 became_hot_at 없는 글에만 현재 시각 기록
+    await pool.query(`
+      UPDATE posts SET became_hot_at = NOW()
+      WHERE is_deleted = FALSE AND (likes - dislikes) >= $1 AND became_hot_at IS NULL
+    `, [newThreshold]);
+
+    // 기준 미달인데 became_hot_at 있는 글은 초기화
+    await pool.query(`
+      UPDATE posts SET became_hot_at = NULL
+      WHERE (likes - dislikes) < $1 AND became_hot_at IS NOT NULL
+    `, [newThreshold]);
 
     hotCache = {
       threshold: newThreshold,
@@ -168,20 +167,7 @@ app.get('/api/posts/hot', async (req, res) => {
       GROUP BY posts.id
       ORDER BY (posts.likes - posts.dislikes) DESC
     `, [threshold]);
-
-    // 인기글이 된 시각 기록 및 응답에 포함
-    const now = Date.now();
-    const posts = result.rows.map(p => {
-      if (!hotPromotedAt[p.id]) hotPromotedAt[p.id] = now;
-      return { ...p, became_hot_at: new Date(hotPromotedAt[p.id]).toISOString() };
-    });
-
-    // 24시간 지난 기록 정리
-    Object.keys(hotPromotedAt).forEach(id => {
-      if (now - hotPromotedAt[id] > 24 * 60 * 60 * 1000) delete hotPromotedAt[id];
-    });
-
-    res.json({ posts, threshold, avg, stddev, updatedAt });
+    res.json({ posts: result.rows, threshold, avg, stddev, updatedAt });
   } catch (err) {
     console.error('GET /api/posts/hot error:', err);
     res.status(500).send(err.message);
