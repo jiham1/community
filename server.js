@@ -94,12 +94,11 @@ function deleteThreshold(views) {
 
 async function cleanExpiredDeletedPosts() {
   try {
+    // deleted_at이 NULL인 삭제글은 현재 시각으로 채움
+    await pool.query('UPDATE posts SET deleted_at = NOW() WHERE is_deleted = TRUE AND deleted_at IS NULL');
     const expireDate = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
-    await pool.query(
-      'DELETE FROM posts WHERE is_deleted = TRUE AND (deleted_at < $1 OR deleted_at IS NULL)',
-      [expireDate]
-    );
-    const deleted = await pool.query('SELECT id FROM posts WHERE is_deleted = TRUE ORDER BY deleted_at ASC NULLS LAST');
+    await pool.query('DELETE FROM posts WHERE is_deleted = TRUE AND deleted_at < $1', [expireDate]);
+    const deleted = await pool.query('SELECT id FROM posts WHERE is_deleted = TRUE ORDER BY deleted_at ASC');
     if (deleted.rows.length > 10) {
       const toDelete = deleted.rows.slice(0, deleted.rows.length - 10);
       for (const row of toDelete) {
